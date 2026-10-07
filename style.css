@@ -785,3 +785,65 @@ body.dark .top-cat-name { color: #ddd; }
     .streak-achievements-grid { grid-template-columns: 1fr; }
     .rule-bar-label { min-width: 100px; font-size: 0.8rem; }
 }
+/* ===== АВТОРИЗАЦИЯ ===== */
+.auth-block {
+    background: white;
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.auth-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+}
+.auth-form input {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+.auth-form button {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+.auth-secondary { background: #95a5a6; }
+.auth-secondary:hover { background: #7f8c8d; }
+.auth-link {
+    background: transparent;
+    color: #3498db;
+    text-decoration: underline;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+.auth-link:hover { background: transparent; color: #2980b9; }
+.auth-user {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+.auth-user span { font-weight: 500; }
+.auth-status {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    min-height: 1.2em;
+}
+.auth-status.error { color: #e74c3c; }
+.auth-status.ok { color: #27ae60; }
+.auth-status.info { color: #3498db; }
+
+body.dark .auth-block { background: #252a30; color: #e0e0e0; }
+body.dark .auth-user { color: #f0f0f0; }
+body.dark .auth-status { color: #aaa; }
+
+@media (max-width: 700px) {
+    .auth-form { grid-template-columns: 1fr 1fr; }
+    .auth-form button { grid-column: span 2; }
+    .auth-link { grid-column: span 2; text-align: center; }
+}
