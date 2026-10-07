@@ -525,3 +525,132 @@ button:hover { background: #2980b9; }
     .envelope-form-grid button,
     .reserve-form-grid button { grid-column: span 2; }
 }
+/* ===== ЭТАП 7: ТЁМНАЯ ТЕМА, ПОИСК, ФИЛЬТРЫ ===== */
+
+body.dark {
+    background: #1a1d21;
+    color: #e0e0e0;
+}
+body.dark .balance-card { background: #0d1b2a; }
+body.dark .form-card,
+body.dark .stat-card,
+body.dark .chart-card,
+body.dark .goal,
+body.dark .envelope,
+body.dark .reserve,
+body.dark .transaction-item,
+body.dark .achieved-item,
+body.dark .recurring-item,
+body.dark .debt-item,
+body.dark #budget-status,
+body.dark .empty-msg,
+body.dark .modal,
+body.dark .version-item,
+body.dark .category-item {
+    background: #252a30;
+    color: #e0e0e0;
+}
+body.dark h1, body.dark h2, body.dark h3, body.dark h4 { color: #f0f0f0; }
+body.dark .goal-name, body.dark .envelope-name, body.dark .reserve-name,
+body.dark .recurring-name, body.dark .debt-person, body.dark .achieved-name,
+body.dark .version-date, body.dark .category-name, body.dark .stat-value,
+body.dark .budget-title, body.dark #total-balance { color: #f0f0f0; }
+body.dark .balance-label { color: rgba(255,255,255,0.7); }
+body.dark input, body.dark select {
+    background: #1a1d21; color: #e0e0e0; border-color: #3a3f45;
+}
+body.dark .tool-btn {
+    background: #252a30; color: #e0e0e0; border-color: #3a3f45;
+}
+body.dark .tool-btn:hover { background: #333940; }
+body.dark .period-btn {
+    background: #252a30; color: #bbb; border-color: #3a3f45;
+}
+body.dark .period-btn:hover { background: #333940; }
+body.dark .period-btn.active { background: #0d1b2a; color: white; border-color: #0d1b2a; }
+body.dark .cat-tab {
+    background: #252a30; color: #bbb; border-color: #3a3f45;
+}
+body.dark .cat-tab.active { background: #0d1b2a; color: white; }
+body.dark .goal-stats, body.dark .goal-deadline-info,
+body.dark .envelope-stats, body.dark .reserve-stats,
+body.dark .reserve-period, body.dark .envelope-period,
+body.dark .tx-date, body.dark .budget-info,
+body.dark .recurring-meta, body.dark .debt-desc,
+body.dark .achieved-meta, body.dark .stat-label,
+body.dark .version-meta { color: #aaa; }
+body.dark .empty-msg { background: #252a30; }
+body.dark .progress-bar-bg { background: #1a1d21; }
+body.dark .budget-progress-bg { background: #1a1d21; }
+body.dark .transaction-item.income,
+body.dark .transaction-item.expense,
+body.dark .transaction-item.transfer { background: #252a30; }
+body.dark .top-item { background: #1a1d21; }
+body.dark .templates-block { background: #2a2540; border-color: #6a4ca8; }
+body.dark .template-chip { background: #252a30; border-color: #6a4ca8; color: #c0a8e8; }
+body.dark .template-chip:hover { background: #333940; }
+body.dark .recurring-item.paid { background: #1a2a1a; }
+body.dark .budget-warning { background: #3a3020; color: #ffd970; }
+body.dark .limit-warn { background: #3a3020; color: #ffd970; }
+body.dark .limit-over { background: #3a2020; color: #ff9090; }
+body.dark .envelope-min-ok, body.dark .reserve-ok { background: #1a3a1a; color: #90e090; }
+body.dark .envelope-min-warn, body.dark .reserve-warn { background: #3a3020; color: #ffd970; }
+body.dark .goal-priority-badge { background: #333940; color: #bbb; }
+body.dark .goal-priority-badge.high { background: #3a2020; color: #ff9090; }
+body.dark .goal-priority-badge.dream { background: #2a2540; color: #c0a8e8; }
+body.dark .tx-desc { color: #ddd; }
+body.dark .delete-btn { color: #666; }
+body.dark .cat-remove { color: #666; }
+body.dark .modal-header { border-bottom-color: #3a3f45; }
+body.dark .cat-add-block { border-top-color: #3a3f45; }
+body.dark .category-item { background: #1a1d21; }
+body.dark .reserve.expired { background: #2a1a1a; }
+body.dark .envelope.expired { background: #2a1a1a; }
+body.dark .goal.priority-high, body.dark .goal.priority-normal, body.dark .goal.priority-dream { background: #252a30; }
+
+#theme-toggle { font-size: 0.85rem; }
+
+.quick-buttons {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;
+}
+.quick-btn {
+    background: #f39c12; color: white; border: none;
+    padding: 8px 14px; border-radius: 20px; font-size: 0.85rem;
+    cursor: pointer; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.quick-btn:hover { background: #d68910; }
+.quick-btn.quick-add {
+    background: transparent; color: #f39c12;
+    border: 1px dashed #f39c12;
+}
+.quick-btn.quick-add:hover { background: rgba(243,156,18,0.1); }
+.quick-btn .quick-del {
+    font-weight: bold; color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 0.9rem;
+}
+.quick-btn .quick-del:hover { color: white; }
+
+.history-controls {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.history-controls input,
+.history-controls select {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.history-group { margin-bottom: 20px; }
+.history-group-title {
+    font-size: 0.85rem; color: #888; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px; padding-left: 5px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+
+@media (max-width: 700px) {
+    .history-controls { grid-template-columns: 1fr; }
+}
