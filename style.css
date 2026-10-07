@@ -2,7 +2,19 @@
 body { background: #f4f7f6; color: #333; padding: 20px; display: flex; justify-content: center; }
 .app-container { width: 100%; max-width: 900px; }
 
-header h1 { text-align: center; margin-bottom: 20px; color: #2c3e50; }
+header h1 { text-align: center; margin-bottom: 15px; color: #2c3e50; }
+
+/* Тулбар */
+.toolbar {
+    display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+.tool-btn {
+    background: white; color: #2c3e50; border: 1px solid #ddd;
+    padding: 8px 14px; border-radius: 8px; font-size: 0.85rem;
+    cursor: pointer; font-weight: 500;
+}
+.tool-btn:hover { background: #ecf0f1; }
 
 .balance-card {
     background: #2c3e50; color: white; padding: 20px; border-radius: 12px;
@@ -32,7 +44,6 @@ button:hover { background: #2980b9; }
 .inline-form input { flex: 1; min-width: 150px; }
 .inline-form button { flex: 0 0 auto; white-space: nowrap; }
 
-/* Сетки форм с датами */
 .reserve-form-grid,
 .envelope-form-grid {
     display: grid;
@@ -51,7 +62,6 @@ button:hover { background: #2980b9; }
     display: flex; flex-direction: column; gap: 15px; margin-top: 15px;
 }
 
-/* РЕЗЕРВЫ */
 .reserve {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -91,7 +101,6 @@ button:hover { background: #2980b9; }
 .btn-close-reserve { background: #95a5a6; }
 .btn-close-reserve:hover { background: #7f8c8d; }
 
-/* ЦЕЛИ */
 .goal {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -109,7 +118,6 @@ button:hover { background: #2980b9; }
 .btn-close { background: #95a5a6; }
 .btn-close:hover { background: #7f8c8d; }
 
-/* КОНВЕРТЫ */
 .envelope {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -134,7 +142,6 @@ button:hover { background: #2980b9; }
 .btn-edit { background: #f39c12; }
 .btn-edit:hover { background: #d68910; }
 
-/* ИСТОРИЯ */
 .transaction-item {
     background: white; border-radius: 10px; padding: 12px 15px;
     display: flex; justify-content: space-between; align-items: center;
@@ -155,6 +162,39 @@ button:hover { background: #2980b9; }
 .delete-btn:hover { color: #e74c3c; }
 
 .empty-msg { color: #999; text-align: center; padding: 20px; background: white; border-radius: 12px; }
+
+/* Модалка версий */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000; padding: 20px;
+}
+.modal {
+    background: white; border-radius: 12px; max-width: 600px; width: 100%;
+    max-height: 80vh; display: flex; flex-direction: column;
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; border-bottom: 1px solid #eee;
+}
+.modal-header h3 { margin: 0; color: #2c3e50; }
+.modal-close {
+    background: none; color: #999; font-size: 1.5rem;
+    padding: 0 8px; cursor: pointer; line-height: 1;
+}
+.modal-close:hover { color: #e74c3c; background: none; }
+.modal-body { padding: 15px 20px; overflow-y: auto; }
+.version-item {
+    padding: 12px; border: 1px solid #eee; border-radius: 8px;
+    margin-bottom: 10px; display: flex; justify-content: space-between;
+    align-items: center; gap: 10px;
+}
+.version-date { font-weight: 500; color: #2c3e50; }
+.version-meta { font-size: 0.8rem; color: #999; }
+.version-restore {
+    background: #3498db; color: white; padding: 6px 12px;
+    border-radius: 6px; font-size: 0.8rem; white-space: nowrap;
+}
 
 @media (max-width: 700px) {
     .input-forms { grid-template-columns: 1fr; }
