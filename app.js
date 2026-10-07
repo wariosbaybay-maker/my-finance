@@ -915,3 +915,319 @@ render = function() {
         updateAnalytics();
     }
 };
+// ===== ЭТАП 4: БЮДЖЕТ, РЕГУЛЯРНЫЕ, ДОЛГИ =====
+
+// === БЮДЖЕТ НА МЕСЯЦ ===
+function getBudget() {
+    const saved = localStorage.getItem('financeBudget');
+    return saved ? parseFloat(saved) : 0;
+}
+function saveBudget(amount) {
+    if (amount > 0) localStorage.setItem('financeBudget', amount.toString());
+    else localStorage.removeItem('financeBudget');
+}
+
+function renderBudget() {
+    const container = document.getElementById('budget-status');
+    if (!container) return;
+    const budget = getBudget();
+    const input = document.getElementById('budget-amount');
+    if (input) input.value = budget > 0 ? budget : '';
+
+    if (budget <= 0) {
+        container.innerHTML = '<p class="empty-msg" style="padding:15px;">Лимит не задан. Введи сумму сверху, чтобы контролировать расходы за месяц.</p>';
+        return;
+    }
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const spent = transactions
+        .filter(t => t.type === 'expense' && new Date(t.date) >= monthStart)
+        .reduce((s, t) => s + t.amount, 0);
+
+    const remaining = budget - spent;
+    const percent = Math.min((spent / budget) * 100, 100);
+    const over = spent > budget;
+    const warn = !over && percent >= 80;
+
+    const stateClass = over ? 'over' : (warn ? 'warn' : 'ok');
+
+    let warnBlock = '';
+    if (over) {
+        warnBlock = `<div class="budget-warning">⚠️ Ты превысил бюджет на ${formatMoney(spent - budget)}!</div>`;
+    } else if (warn) {
+        warnBlock = `<div class="budget-warning">⚠️ Ты использовал ${percent.toFixed(0)}% бюджета. Осталось ${formatMoney(remaining)}.</div>`;
+    }
+
+    container.innerHTML = `
+        <div class="budget-header">
+            <span class="budget-title">Лимит: ${formatMoney(budget)}</span>
+            <span class="budget-numbers ${stateClass}">${formatMoney(spent)} / ${formatMoney(budget)}</span>
+        </div>
+        <div class="budget-progress-bg">
+            <div class="budget-progress-fill ${over ? 'over' : (warn ? 'warn' : '')}" style="width: ${percent}%"></div>
+        </div>
+        <div class="budget-info">
+            ${over
+                ? `Перерасход: <strong>${formatMoney(spent - budget)}</strong>`
+                : `Осталось до конца месяца: <strong>${formatMoney(remaining)}</strong>`}
+        </div>
+        ${warnBlock}
+    `;
+}
+
+// === РЕГУЛЯРНЫЕ ПЛАТЕЖИ ===
+function getRecurrings() {
+    try { return JSON.parse(localStorage.getItem('financeRecurrings')) || []; }
+    catch { return []; }
+}
+function saveRecurrings(list) {
+    localStorage.setItem('financeRecurrings', JSON.stringify(list));
+}
+function getRecurringStatus() {
+    // { id: 'YYYY-MM' } — когда последний раз отмечали оплату
+    try { return JSON.parse(localStorage.getItem('financeRecurringStatus')) || {}; }
+    catch { return {}; }
+}
+function saveRecurringStatus(s) {
+    localStorage.setItem('financeRecurringStatus', JSON.stringify(s));
+}
+
+function renderRecurrings() {
+    const container = document.getElementById('recurring-list');
+    if (!container) return;
+    const list = getRecurrings();
+    if (list.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет регулярных платежей</p>';
+        return;
+    }
+    const status = getRecurringStatus();
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const today = now.getDate();
+
+    container.innerHTML = list.map(r => {
+        const paid = status[r.id] === currentMonthKey;
+        const daySoon = !paid && r.day <= today + 3 && r.day >= today;
+        const overdue = !paid && r.day < today;
+
+        let hint = '';
+        if (paid) hint = '✅ Оплачено в этом месяце';
+        else if (overdue) hint = `⚠️ Просрочено (день ${r.day})`;
+        else if (daySoon) hint = `⏰ Скоро (день ${r.day})`;
+        else hint = `📅 День ${r.day} каждого месяца`;
+
+        return `
+            <div class="recurring-item ${paid ? 'paid' : ''}">
+                <div class="recurring-info">
+                    <span class="recurring-name">${r.type === 'income' ? '💵' : '💸'} ${r.name}</span>
+                    <span class="recurring-meta">${hint}</span>
+                </div>
+                <span class="recurring-amount ${r.type}">${r.type === 'income' ? '+' : '-'}${formatMoney(r.amount)}</span>
+                <div class="recurring-actions">
+                    ${paid
+                        ? `<button class="btn-unpaid" onclick="unmarkRecurring('${r.id}')">Отменить</button>`
+                        : `<button class="btn-mark-paid" onclick="markRecurringPaid('${r.id}')">✓ Отметить</button>`}
+                    <button class="delete-btn" onclick="deleteRecurring('${r.id}')" title="Удалить">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.markRecurringPaid = (id) => {
+    const list = getRecurrings();
+    const r = list.find(x => x.id === id);
+    if (!r) return;
+    const status = getRecurringStatus();
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    if (r.type === 'expense') {
+        if (r.amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+        balance -= r.amount;
+    } else {
+        balance += r.amount;
+    }
+    transactions.push({
+        id: generateId(), type: r.type, amount: r.amount,
+        desc: `${r.name} (регулярный)`, date: new Date().toISOString(),
+        categoryId: null
+    });
+    status[r.id] = monthKey;
+    saveRecurringStatus(status);
+    saveData(); render();
+};
+
+window.unmarkRecurring = (id) => {
+    const list = getRecurrings();
+    const r = list.find(x => x.id === id);
+    if (!r) return;
+    if (!confirm(`Отменить отметку «${r.name}»? Операция вернётся обратно.`)) return;
+
+    const status = getRecurringStatus();
+    if (!status[r.id]) return;
+
+    // Откатываем баланс
+    if (r.type === 'expense') balance += r.amount;
+    else balance -= r.amount;
+
+    // Удаляем последнюю операцию с этим описанием
+    const idx = [...transactions].reverse().findIndex(t =>
+        t.desc === `${r.name} (регулярный)` && t.amount === r.amount
+    );
+    if (idx !== -1) {
+        transactions.splice(transactions.length - 1 - idx, 1);
+    }
+    delete status[r.id];
+    saveRecurringStatus(status);
+    saveData(); render();
+};
+
+window.deleteRecurring = (id) => {
+    if (!confirm('Удалить регулярный платёж?')) return;
+    saveRecurrings(getRecurrings().filter(x => x.id !== id));
+    const status = getRecurringStatus();
+    delete status[id];
+    saveRecurringStatus(status);
+    renderRecurrings();
+};
+
+// === ДОЛГИ ===
+function getDebts() {
+    try { return JSON.parse(localStorage.getItem('financeDebts')) || []; }
+    catch { return []; }
+}
+function saveDebts(list) {
+    localStorage.setItem('financeDebts', JSON.stringify(list));
+}
+
+function renderDebts() {
+    const container = document.getElementById('debts-list');
+    if (!container) return;
+    const list = getDebts();
+    if (list.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет долгов</p>';
+        return;
+    }
+    container.innerHTML = list.map(d => `
+        <div class="debt-item ${d.direction}">
+            <div class="debt-info">
+                <span class="debt-person">${d.direction === 'iOwe' ? '→ ' : '← '}${d.person}</span>
+                <span class="debt-desc">${d.desc || (d.direction === 'iOwe' ? 'Я должен' : 'Мне должны')} · ${formatDate(d.date)}</span>
+            </div>
+            <span class="debt-amount ${d.direction}">${formatMoney(d.amount)}</span>
+            <div class="debt-actions">
+                <button class="btn-close-debt" onclick="closeDebt('${d.id}')">Закрыть</button>
+                <button class="delete-btn" onclick="deleteDebt('${d.id}')" title="Удалить">×</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.closeDebt = (id) => {
+    const list = getDebts();
+    const d = list.find(x => x.id === id);
+    if (!d) return;
+    const msg = d.direction === 'iOwe'
+        ? `Закрыть долг «${d.person}»? С баланса спишется ${formatMoney(d.amount)}.`
+        : `Получить долг от «${d.person}»? На баланс зачислится ${formatMoney(d.amount)}.`;
+    if (!confirm(msg)) return;
+
+    if (d.direction === 'iOwe') {
+        if (d.amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+        balance -= d.amount;
+        transactions.push({
+            id: generateId(), type: 'expense', amount: d.amount,
+            desc: `Возврат долга: ${d.person}`, date: new Date().toISOString(),
+            categoryId: null
+        });
+    } else {
+        balance += d.amount;
+        transactions.push({
+            id: generateId(), type: 'income', amount: d.amount,
+            desc: `Возврат долга от: ${d.person}`, date: new Date().toISOString(),
+            categoryId: null
+        });
+    }
+    saveDebts(list.filter(x => x.id !== id));
+    saveData(); render();
+};
+
+window.deleteDebt = (id) => {
+    if (!confirm('Удалить долг без создания операции?')) return;
+    saveDebts(getDebts().filter(x => x.id !== id));
+    renderDebts();
+};
+
+// === ОБНОВЛЕНИЕ РЕНДЕРА ===
+const _renderBeforeStage4 = render;
+render = function() {
+    _renderBeforeStage4();
+    if (document.getElementById('budget-status')) {
+        renderBudget();
+        renderRecurrings();
+        renderDebts();
+    }
+};
+
+// === ИНИЦИАЛИЗАЦИЯ ФОРМ ЭТАПА 4 ===
+document.addEventListener('DOMContentLoaded', () => {
+    // Бюджет
+    const budgetForm = document.getElementById('budget-form');
+    if (budgetForm) {
+        budgetForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('budget-amount').value);
+            if (isNaN(amount) || amount <= 0) { alert('Введи сумму'); return; }
+            saveBudget(amount);
+            renderBudget();
+        });
+        document.getElementById('budget-clear-btn').addEventListener('click', () => {
+            if (!confirm('Убрать лимит бюджета?')) return;
+            saveBudget(0);
+            renderBudget();
+        });
+    }
+
+    // Регулярные
+    const recForm = document.getElementById('recurring-form');
+    if (recForm) {
+        recForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('rec-name').value.trim();
+            const amount = parseFloat(document.getElementById('rec-amount').value);
+            const type = document.getElementById('rec-type').value;
+            const day = parseInt(document.getElementById('rec-day').value);
+            if (!name || isNaN(amount) || amount <= 0) return;
+            const list = getRecurrings();
+            list.push({ id: generateId(), name, amount, type, day });
+            saveRecurrings(list);
+            renderRecurrings();
+            e.target.reset();
+        });
+    }
+
+    // Долги
+    const debtForm = document.getElementById('debt-form');
+    if (debtForm) {
+        debtForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const direction = document.getElementById('debt-direction').value;
+            const person = document.getElementById('debt-person').value.trim();
+            const amount = parseFloat(document.getElementById('debt-amount').value);
+            const desc = document.getElementById('debt-desc').value.trim();
+            if (!person || isNaN(amount) || amount <= 0) return;
+            const list = getDebts();
+            list.push({ id: generateId(), direction, person, amount, desc, date: new Date().toISOString() });
+            saveDebts(list);
+            renderDebts();
+            e.target.reset();
+        });
+    }
+
+    // Первый рендер
+    renderBudget();
+    renderRecurrings();
+    renderDebts();
+});
