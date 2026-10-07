@@ -8,18 +8,21 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Шапка с балансом -->
         <header>
             <h1>💰 Мой Кошелек</h1>
             <div class="balance-card">
-                <span>Текущий баланс</span>
-                <span id="total-balance">0 ₽</span>
+                <div>
+                    <span class="balance-label">Свободные деньги</span>
+                    <span id="total-balance">0 ₽</span>
+                </div>
+                <div class="balance-sub">
+                    <span id="in-envelopes">В конвертах: 0 ₽</span>
+                </div>
             </div>
         </header>
 
-        <!-- Формы ввода -->
+        <!-- Доход -->
         <section class="input-forms">
-            <!-- Добавить доход -->
             <div class="form-card income-form">
                 <h3>Добавить доход</h3>
                 <form id="income-form">
@@ -29,36 +32,25 @@
                 </form>
             </div>
 
-            <!-- Добавить расход -->
-            <div class="form-card expense-form">
-                <h3>Добавить расход</h3>
-                <form id="expense-form">
-                    <input type="number" id="expense-amount" placeholder="Сумма" required min="0.01" step="0.01">
-                    <input type="text" id="expense-desc" placeholder="На что (еда, транспорт)" required>
-                    <button type="submit">Добавить</button>
-                </form>
-            </div>
-
-            <!-- Создать цель (отложить) -->
-            <div class="form-card goal-form">
-                <h3>🎯 Создать цель</h3>
-                <form id="goal-form">
-                    <input type="text" id="goal-name" placeholder="Название (на машину)" required>
-                    <input type="number" id="goal-target" placeholder="Нужная сумма" required min="1" step="0.01">
-                    <button type="submit">Создать</button>
+            <div class="form-card envelope-form">
+                <h3>📁 Создать конверт</h3>
+                <form id="envelope-form">
+                    <input type="text" id="env-name" placeholder="Название (Продукты)" required>
+                    <input type="number" id="env-limit" placeholder="Сумма на период" required min="1" step="0.01">
+                    <button type="submit">Создать конверт</button>
                 </form>
             </div>
         </section>
 
-        <!-- Список целей -->
-        <section id="goals-list-section">
-            <h2>Мои цели</h2>
-            <div id="goals-list"></div>
+        <!-- Конверты -->
+        <section id="envelopes-section">
+            <h2>Мои конверты</h2>
+            <div id="envelopes-list"></div>
         </section>
 
-        <!-- История операций -->
+        <!-- История -->
         <section class="history-section">
-            <h2>История</h2>
+            <h2>История операций</h2>
             <div id="transactions-list"></div>
         </section>
     </div>
