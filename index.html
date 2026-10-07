@@ -184,16 +184,28 @@
             <div id="reserves-list"></div>
         </section>
 
-        <section class="section-block">
+               <section class="section-block">
             <h2>🎯 Цели (накопления)</h2>
             <div class="form-card">
-                <form id="goal-form" class="inline-form">
+                <form id="goal-form" class="goal-form-new">
+                    <input type="text" id="goal-icon" placeholder="🎮" maxlength="4" class="goal-icon-input">
                     <input type="text" id="goal-name" placeholder="На что копим" required>
                     <input type="number" id="goal-target" placeholder="Нужная сумма" required min="1" step="0.01">
+                    <label class="date-label">Дедлайн:
+                        <input type="date" id="goal-deadline">
+                    </label>
+                    <select id="goal-priority">
+                        <option value="high">🔥 Важная</option>
+                        <option value="normal" selected>⭐ Обычная</option>
+                        <option value="dream">💭 Мечта</option>
+                    </select>
                     <button type="submit">Создать цель</button>
                 </form>
             </div>
             <div id="goals-list"></div>
+
+            <h2 style="margin-top:30px;">✅ Достигнуто</h2>
+            <div id="achieved-list"></div>
         </section>
 
         <section class="section-block">
