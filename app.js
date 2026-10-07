@@ -660,3 +660,258 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('env-date-to').value = lastDay;
     });
 });
+// ===== ЭТАП 3: ГРАФИКИ И АНАЛИТИКА =====
+let currentPeriod = 'all';
+let pieChart = null, barChart = null, lineChart = null;
+
+window.setPeriod = (period) => {
+    currentPeriod = period;
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    updateAnalytics();
+};
+
+function getPeriodStart() {
+    const now = new Date();
+    switch (currentPeriod) {
+        case 'month': return new Date(now.getFullYear(), now.getMonth(), 1);
+        case 'quarter': return new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        case 'year': return new Date(now.getFullYear(), 0, 1);
+        case 'all': return new Date(0);
+    }
+}
+
+function filterTxByPeriod() {
+    const start = getPeriodStart();
+    return transactions.filter(tx => new Date(tx.date) >= start);
+}
+
+function updateAnalytics() {
+    const tx = filterTxByPeriod();
+    const expenseTx = tx.filter(t => t.type === 'expense');
+    const incomeTx = tx.filter(t => t.type === 'income');
+
+    // Стат-карточки
+    const totalIncome = incomeTx.reduce((s, t) => s + t.amount, 0);
+    const totalExpense = expenseTx.reduce((s, t) => s + t.amount, 0);
+
+    // Средний расход в день (за период)
+    const start = getPeriodStart();
+    const end = new Date();
+    const daysCount = Math.max(1, Math.ceil((end - start) / (24 * 60 * 60 * 1000)));
+    const avgDay = totalExpense / daysCount;
+
+    // Прогноз до конца текущего месяца
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthExpense = transactions
+        .filter(t => t.type === 'expense' && new Date(t.date) >= monthStart)
+        .reduce((s, t) => s + t.amount, 0);
+    const forecast = dayOfMonth > 0 ? (monthExpense / dayOfMonth) * daysInMonth : 0;
+
+    document.getElementById('stat-avg-day').textContent = formatMoney(avgDay);
+    document.getElementById('stat-forecast').textContent = formatMoney(forecast);
+    document.getElementById('stat-income').textContent = formatMoney(totalIncome);
+    document.getElementById('stat-expense').textContent = formatMoney(totalExpense);
+
+    renderPieChart(expenseTx);
+    renderBarChart();
+    renderLineChart();
+    renderTopExpenses(expenseTx);
+}
+
+function renderPieChart(expenseTx) {
+    const byCategory = {};
+    expenseTx.forEach(t => {
+        const cat = t.categoryId ? getCategoryById('expense', t.categoryId) : null;
+        const name = cat ? `${cat.icon} ${cat.name}` : 'Без категории';
+        const color = cat ? cat.color : '#95a5a6';
+        if (!byCategory[name]) byCategory[name] = { sum: 0, color };
+        byCategory[name].sum += t.amount;
+    });
+
+    const labels = Object.keys(byCategory);
+    const data = labels.map(l => byCategory[l].sum);
+    const colors = labels.map(l => byCategory[l].color);
+
+    const canvas = document.getElementById('pie-chart');
+    const emptyEl = document.getElementById('pie-empty');
+
+    if (pieChart) { pieChart.destroy(); pieChart = null; }
+
+    if (labels.length === 0) {
+        canvas.style.display = 'none';
+        emptyEl.style.display = 'block';
+        return;
+    }
+    canvas.style.display = 'block';
+    emptyEl.style.display = 'none';
+
+    pieChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: 'white' }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 12 }, padding: 10 } },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = ((ctx.parsed / total) * 100).toFixed(1);
+                            return `${ctx.label}: ${formatMoney(ctx.parsed)} (${percent}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderBarChart() {
+    // Последние 6 месяцев
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+            label: d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' }),
+            start: new Date(d.getFullYear(), d.getMonth(), 1),
+            end: new Date(d.getFullYear(), d.getMonth() + 1, 1)
+        });
+    }
+
+    const incomes = months.map(m =>
+        transactions.filter(t => t.type === 'income' && new Date(t.date) >= m.start && new Date(t.date) < m.end)
+            .reduce((s, t) => s + t.amount, 0)
+    );
+    const expenses = months.map(m =>
+        transactions.filter(t => t.type === 'expense' && new Date(t.date) >= m.start && new Date(t.date) < m.end)
+            .reduce((s, t) => s + t.amount, 0)
+    );
+
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('bar-chart'), {
+        type: 'bar',
+        data: {
+            labels: months.map(m => m.label),
+            datasets: [
+                { label: 'Доход', data: incomes, backgroundColor: '#27ae60' },
+                { label: 'Расход', data: expenses, backgroundColor: '#e74c3c' }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}` } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: (v) => formatMoney(v) } }
+            }
+        }
+    });
+}
+
+function renderLineChart() {
+    // Динамика баланса: идём от старых операций к новым
+    const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const start = getPeriodStart();
+
+    let runningBalance = 0;
+    // Считаем баланс на начало периода
+    sorted.forEach(tx => {
+        if (new Date(tx.date) < start) {
+            if (tx.type === 'income') runningBalance += tx.amount;
+            else if (tx.type === 'expense') runningBalance -= tx.amount;
+            else if (tx.type === 'transfer') runningBalance -= tx.amount;
+        }
+    });
+
+    const labels = [];
+    const values = [];
+    let current = runningBalance;
+
+    // Группируем по дням
+    const byDay = {};
+    sorted.filter(tx => new Date(tx.date) >= start).forEach(tx => {
+        const day = new Date(tx.date).toISOString().split('T')[0];
+        if (!byDay[day]) byDay[day] = 0;
+        if (tx.type === 'income') byDay[day] += tx.amount;
+        else if (tx.type === 'expense') byDay[day] -= tx.amount;
+        else if (tx.type === 'transfer') byDay[day] -= tx.amount;
+    });
+
+    Object.keys(byDay).sort().forEach(day => {
+        current += byDay[day];
+        labels.push(new Date(day).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }));
+        values.push(current);
+    });
+
+    if (lineChart) lineChart.destroy();
+    lineChart = new Chart(document.getElementById('line-chart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Баланс',
+                data: values,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52,152,219,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx) => formatMoney(ctx.parsed.y) } }
+            },
+            scales: {
+                y: { beginAtZero: false, ticks: { callback: (v) => formatMoney(v) } }
+            }
+        }
+    });
+}
+
+function renderTopExpenses(expenseTx) {
+    const container = document.getElementById('top-expenses');
+    const top = [...expenseTx].sort((a, b) => b.amount - a.amount).slice(0, 5);
+    if (top.length === 0) {
+        container.innerHTML = '<p class="chart-empty">Нет трат за период</p>';
+        return;
+    }
+    container.innerHTML = top.map(t => {
+        const cat = t.categoryId ? getCategoryById('expense', t.categoryId) : null;
+        const catTag = cat ? `<span class="tx-category-tag" style="background:${cat.color}">${cat.icon} ${cat.name}</span>` : '';
+        return `
+            <div class="top-item">
+                <div class="top-item-info">
+                    <span class="top-item-desc">${catTag}${t.desc}</span>
+                    <span class="top-item-date">${formatDate(t.date)}</span>
+                </div>
+                <span class="top-item-amount">${formatMoney(t.amount)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// Переопределяем render(), чтобы аналитика обновлялась при любом изменении
+const _originalRender = render;
+render = function() {
+    _originalRender();
+    if (document.getElementById('stat-avg-day')) {
+        updateAnalytics();
+    }
+};
