@@ -1708,3 +1708,250 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('env-date-to').value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     });
 });
+
+// ===== ЭТАП 7: ТЁМНАЯ ТЕМА, PWA, ПОИСК, ФИЛЬТРЫ, ГОРЯЧИЕ КЛАВИШИ =====
+
+function applyTheme(theme) {
+    let effective = theme;
+    if (theme === 'auto') {
+        effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.body.classList.toggle('dark', effective === 'dark');
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = effective === 'dark' ? '☀️ Тема' : '🌙 Тема';
+}
+function getTheme() {
+    return localStorage.getItem('financeTheme') || 'auto';
+}
+window.toggleTheme = () => {
+    const current = getTheme();
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('financeTheme', next);
+    applyTheme(next);
+};
+
+function getQuickButtons() {
+    try { return JSON.parse(localStorage.getItem('financeQuickButtons')) || []; }
+    catch { return []; }
+}
+function saveQuickButtons(list) {
+    localStorage.setItem('financeQuickButtons', JSON.stringify(list));
+}
+
+function renderQuickButtons() {
+    const container = document.getElementById('quick-buttons');
+    if (!container) return;
+    const buttons = getQuickButtons();
+    container.innerHTML = buttons.map((b, i) => `
+        <button class="quick-btn" onclick="executeQuick(${i})">
+            ${b.icon || '⚡'} ${b.name} · ${formatMoney(b.amount)}
+            <span class="quick-del" onclick="event.stopPropagation();deleteQuick(${i})">×</span>
+        </button>
+    `).join('') + `
+        <button class="quick-btn quick-add" onclick="addQuickButton()">+ Быстрая кнопка</button>
+    `;
+}
+
+window.executeQuick = (idx) => {
+    const buttons = getQuickButtons();
+    const b = buttons[idx];
+    if (!b) return;
+    const type = b.type || 'expense';
+
+    if (type === 'expense') {
+        if (b.amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+        balance -= b.amount;
+    } else {
+        balance += b.amount;
+    }
+    transactions.push({
+        id: generateId(), type, amount: b.amount,
+        desc: b.name, date: new Date().toISOString(),
+        categoryId: b.categoryId || null
+    });
+    saveData(); render();
+};
+
+window.addQuickButton = () => {
+    const name = prompt('Название (например, «Сиги»):');
+    if (!name) return;
+    const amountStr = prompt('Сумма:', '200');
+    if (amountStr === null) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) return;
+    const icon = prompt('Иконка (эмодзи, опционально):', '💸') || '';
+    const type = confirm('OK = расход, Отмена = доход') ? 'expense' : 'income';
+
+    let categoryId = null;
+    if (type === 'expense' && categories.expense.length > 0) {
+        const catList = categories.expense.map((c, i) => `${i + 1}. ${c.icon} ${c.name}`).join('\n');
+        const choice = prompt(`Категория:\n${catList}\n\nВведи номер:`, '1');
+        const idx = parseInt(choice) - 1;
+        if (!isNaN(idx) && idx >= 0 && idx < categories.expense.length) {
+            categoryId = categories.expense[idx].id;
+        }
+    }
+
+    const buttons = getQuickButtons();
+    buttons.push({ name, amount, icon, type, categoryId });
+    saveQuickButtons(buttons);
+    renderQuickButtons();
+};
+
+window.deleteQuick = (idx) => {
+    if (!confirm('Удалить быструю кнопку?')) return;
+    const buttons = getQuickButtons();
+    buttons.splice(idx, 1);
+    saveQuickButtons(buttons);
+    renderQuickButtons();
+};
+
+let historyFilters = { search: '', type: 'all', period: 'all' };
+
+function applyHistoryFilters() {
+    const search = document.getElementById('history-search');
+    const typeF = document.getElementById('history-type-filter');
+    const periodF = document.getElementById('history-period-filter');
+    if (search) historyFilters.search = search.value.toLowerCase().trim();
+    if (typeF) historyFilters.type = typeF.value;
+    if (periodF) historyFilters.period = periodF.value;
+    renderTransactionsFiltered();
+}
+
+function filterTransactions() {
+    let list = [...transactions];
+    if (historyFilters.type !== 'all') {
+        list = list.filter(t => t.type === historyFilters.type);
+    }
+    if (historyFilters.period !== 'all') {
+        const now = new Date();
+        let start;
+        if (historyFilters.period === 'week') start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        else if (historyFilters.period === 'month') start = new Date(now.getFullYear(), now.getMonth(), 1);
+        else if (historyFilters.period === 'year') start = new Date(now.getFullYear(), 0, 1);
+        if (start) list = list.filter(t => new Date(t.date) >= start);
+    }
+    if (historyFilters.search) {
+        const q = historyFilters.search;
+        list = list.filter(t => {
+            if (t.desc.toLowerCase().includes(q)) return true;
+            if (t.amount.toString().includes(q)) return true;
+            const cat = t.categoryId ? getCategoryById(t.type, t.categoryId) : null;
+            if (cat && cat.name.toLowerCase().includes(q)) return true;
+            return false;
+        });
+    }
+    return list;
+}
+
+function formatGroupDate(iso) {
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
+    const txDay = new Date(d); txDay.setHours(0,0,0,0);
+    if (txDay.getTime() === today.getTime()) return 'Сегодня';
+    if (txDay.getTime() === yesterday.getTime()) return 'Вчера';
+    if (txDay >= weekAgo) return 'На этой неделе';
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function renderTransactionsFiltered() {
+    const container = document.getElementById('transactions-list');
+    if (!container) return;
+    const list = filterTransactions();
+    if (list.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Ничего не найдено</p>';
+        return;
+    }
+    const sorted = [...list].reverse();
+    const groups = {};
+    sorted.forEach(tx => {
+        const day = new Date(tx.date).toISOString().split('T')[0];
+        if (!groups[day]) groups[day] = [];
+        groups[day].push(tx);
+    });
+    container.innerHTML = Object.keys(groups).sort().reverse().map(day => {
+        const items = groups[day];
+        const dayTotal = items.reduce((sum, t) => {
+            if (t.type === 'income') return sum + t.amount;
+            if (t.type === 'expense') return sum - t.amount;
+            return sum;
+        }, 0);
+        const totalClass = dayTotal > 0 ? 'income' : (dayTotal < 0 ? 'expense' : 'transfer');
+        return `
+            <div class="history-group">
+                <div class="history-group-title">
+                    <span>${formatGroupDate(items[0].date)}</span>
+                    <span class="tx-amount ${totalClass}" style="font-size:0.85rem;">${dayTotal > 0 ? '+' : ''}${formatMoney(dayTotal)}</span>
+                </div>
+                ${items.map(tx => {
+                    const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '-' : '');
+                    const cat = tx.categoryId ? getCategoryById(tx.type, tx.categoryId) : null;
+                    const catTag = cat ? `<span class="tx-category-tag" style="background:${cat.color}">${cat.icon} ${cat.name}</span>` : '';
+                    return `
+                        <div class="transaction-item ${tx.type}">
+                            <div class="tx-info">
+                                <span class="tx-desc">${catTag}${tx.desc}</span>
+                                <span class="tx-date">${formatDate(tx.date)}</span>
+                            </div>
+                            <div class="tx-right">
+                                <span class="tx-amount ${tx.type}">${sign}${formatMoney(tx.amount)}</span>
+                                <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">×</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }).join('');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'i') {
+        e.preventDefault();
+        const el = document.getElementById('income-amount');
+        if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        const el = document.getElementById('expense-amount');
+        if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        const el = document.getElementById('history-search');
+        if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }
+    if (e.key === 'Escape') {
+        closeVersionHistory();
+        closeCategoriesManager();
+    }
+});
+
+const _renderBeforeStage7 = render;
+render = function() {
+    _renderBeforeStage7();
+    if (document.getElementById('transactions-list')) {
+        renderTransactionsFiltered();
+        renderQuickButtons();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme(getTheme());
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (getTheme() === 'auto') applyTheme('auto');
+        });
+    }
+    ['history-search', 'history-type-filter', 'history-period-filter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', applyHistoryFilters);
+            el.addEventListener('change', applyHistoryFilters);
+        }
+    });
+    renderTransactionsFiltered();
+    renderQuickButtons();
+});
