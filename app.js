@@ -1,17 +1,14 @@
-// --- Состояние ---
 let balance = 0;
 let transactions = [];
 let goals = [];
 let envelopes = [];
-let reserves = [];    // обязательные резервы
+let reserves = [];
 
-// --- Утилиты ---
 const formatMoney = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
 const formatDate = (iso) => new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const formatPeriod = (from, to) => `${new Date(from).toLocaleDateString('ru-RU')} — ${new Date(to).toLocaleDateString('ru-RU')}`;
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-// --- Сохранение / Загрузка ---
 function saveData() {
     localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals, envelopes, reserves }));
 }
@@ -27,7 +24,6 @@ function loadData() {
     }
 }
 
-// --- Рендер ---
 function render() {
     const inEnv = envelopes.reduce((s, e) => s + e.limit, 0);
     const inGoals = goals.reduce((s, g) => s + g.saved, 0);
@@ -42,7 +38,6 @@ function render() {
     renderTransactions();
 }
 
-// --- РЕЗЕРВЫ ---
 function renderReserves() {
     const container = document.getElementById('reserves-list');
     if (reserves.length === 0) {
@@ -185,7 +180,6 @@ window.closeReserve = (id) => {
     render();
 };
 
-// --- ЦЕЛИ ---
 function renderGoals() {
     const container = document.getElementById('goals-list');
     if (goals.length === 0) {
@@ -251,7 +245,6 @@ window.closeGoal = (id) => {
     render();
 };
 
-// --- КОНВЕРТЫ ---
 function renderEnvelopes() {
     const container = document.getElementById('envelopes-list');
     if (envelopes.length === 0) {
@@ -384,7 +377,6 @@ window.closeEnvelope = (id) => {
     render();
 };
 
-// --- ИСТОРИЯ ---
 function renderTransactions() {
     const container = document.getElementById('transactions-list');
     if (transactions.length === 0) {
@@ -394,134 +386,3 @@ function renderTransactions() {
     const sorted = [...transactions].reverse();
     container.innerHTML = sorted.map(tx => {
         const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '-' : '');
-        return `
-            <div class="transaction-item ${tx.type}">
-                <div class="tx-info">
-                    <span class="tx-desc">${tx.desc}</span>
-                    <span class="tx-date">${formatDate(tx.date)}</span>
-                </div>
-                <div class="tx-right">
-                    <span class="tx-amount ${tx.type}">${sign}${formatMoney(tx.amount)}</span>
-                    <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">×</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-window.deleteTransaction = (id) => {
-    const idx = transactions.findIndex(t => t.id === id);
-    if (idx === -1) return;
-    if (!confirm('Удалить операцию из истории? Баланс не изменится (это только запись).')) return;
-    transactions.splice(idx, 1);
-    saveData();
-    render();
-};
-
-// --- Инициализация ---
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    render();
-
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-    document.getElementById('env-date-from').value = firstDay;
-    document.getElementById('env-date-to').value = lastDay;
-    document.getElementById('reserve-date-from').value = firstDay;
-    document.getElementById('reserve-date-to').value = lastDay;
-
-    // Доход
-    document.getElementById('income-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const amount = parseFloat(document.getElementById('income-amount').value);
-        const desc = document.getElementById('income-desc').value.trim();
-        if (isNaN(amount) || amount <= 0 || !desc) return;
-        balance += amount;
-        transactions.push({ id: generateId(), type: 'income', amount, desc, date: new Date().toISOString() });
-        saveData(); render();
-        e.target.reset();
-    });
-
-    // Расход
-    document.getElementById('expense-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const amount = parseFloat(document.getElementById('expense-amount').value);
-        const desc = document.getElementById('expense-desc').value.trim();
-        if (isNaN(amount) || amount <= 0 || !desc) return;
-        if (amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
-        balance -= amount;
-        transactions.push({ id: generateId(), type: 'expense', amount, desc, date: new Date().toISOString() });
-        saveData(); render();
-        e.target.reset();
-    });
-
-    // Резерв
-    document.getElementById('reserve-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('reserve-name').value.trim();
-        const limit = parseFloat(document.getElementById('reserve-amount').value);
-        const dateFrom = document.getElementById('reserve-date-from').value;
-        const dateTo = document.getElementById('reserve-date-to').value;
-
-        if (!name || isNaN(limit) || limit <= 0) return;
-        if (!dateFrom || !dateTo) { alert('Укажи период'); return; }
-        if (new Date(dateTo) < new Date(dateFrom)) { alert('Дата конца раньше начала'); return; }
-        if (limit > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
-
-        balance -= limit;
-        reserves.push({
-            id: generateId(),
-            name, limit, spent: 0,
-            dateFrom, dateTo
-        });
-        transactions.push({
-            id: generateId(), type: 'transfer', amount: limit,
-            desc: `Создан резерв «${name}»`, date: new Date().toISOString()
-        });
-        saveData(); render();
-        e.target.reset();
-        document.getElementById('reserve-date-from').value = firstDay;
-        document.getElementById('reserve-date-to').value = lastDay;
-    });
-
-    // Цель
-    document.getElementById('goal-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('goal-name').value.trim();
-        const target = parseFloat(document.getElementById('goal-target').value);
-        if (!name || isNaN(target) || target <= 0) return;
-        goals.push({ id: generateId(), name, target, saved: 0 });
-        saveData(); render();
-        e.target.reset();
-    });
-
-    // Конверт
-    document.getElementById('envelope-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('env-name').value.trim();
-        const limit = parseFloat(document.getElementById('env-limit').value);
-        const dateFrom = document.getElementById('env-date-from').value;
-        const dateTo = document.getElementById('env-date-to').value;
-
-        if (!name || isNaN(limit) || limit <= 0) return;
-        if (!dateFrom || !dateTo) { alert('Укажи период'); return; }
-        if (new Date(dateTo) < new Date(dateFrom)) { alert('Дата конца раньше начала'); return; }
-        if (limit > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
-
-        balance -= limit;
-        envelopes.push({
-            id: generateId(),
-            name, limit, spent: 0,
-            dateFrom, dateTo
-        });
-        transactions.push({
-            id: generateId(), type: 'transfer', amount: limit,
-            desc: `Создан конверт «${name}»`, date: new Date().toISOString()
-        });
-        saveData(); render();
-        e.target.reset();
-        document.getElementById('env-date-from').value = firstDay;
-        document.getElementById('env-date-to').value = lastDay;
-    });
-});
