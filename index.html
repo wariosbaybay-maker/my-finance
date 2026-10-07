@@ -15,6 +15,7 @@
                 <button type="button" class="tool-btn" onclick="downloadBackup()">💾 Скачать бэкап</button>
                 <button type="button" class="tool-btn" onclick="document.getElementById('upload-input').click()">📂 Загрузить бэкап</button>
                 <button type="button" class="tool-btn" onclick="showVersionHistory()">🕐 История версий</button>
+                <button type="button" class="tool-btn" onclick="showCategoriesManager()">⚙️ Категории</button>
                 <input type="file" id="upload-input" accept=".json" style="display:none" onchange="uploadBackup(event)">
             </div>
 
@@ -36,6 +37,7 @@
                 <h3>💵 Доход</h3>
                 <form id="income-form">
                     <input type="number" id="income-amount" placeholder="Сумма" required min="0.01" step="0.01">
+                    <select id="income-category" required></select>
                     <input type="text" id="income-desc" placeholder="Откуда (зарплата, подработка)" required>
                     <button type="submit">Добавить доход</button>
                 </form>
@@ -45,6 +47,7 @@
                 <h3>💸 Расход</h3>
                 <form id="expense-form">
                     <input type="number" id="expense-amount" placeholder="Сумма" required min="0.01" step="0.01">
+                    <select id="expense-category" required></select>
                     <input type="text" id="expense-desc" placeholder="На что (сиги, еда)" required>
                     <button type="submit">Добавить расход</button>
                 </form>
@@ -109,10 +112,39 @@
     <div id="version-modal" class="modal-overlay" style="display:none">
         <div class="modal">
             <div class="modal-header">
-                <h3>🕐 История версий (автоснимки)</h3>
+                <h3>🕐 История версий</h3>
                 <button class="modal-close" onclick="closeVersionHistory()">×</button>
             </div>
             <div id="version-list" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Модалка категорий -->
+    <div id="categories-modal" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>⚙️ Управление категориями</h3>
+                <button class="modal-close" onclick="closeCategoriesManager()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="cat-tabs">
+                    <button class="cat-tab active" onclick="switchCatTab('expense')" id="tab-expense">💸 Расходы</button>
+                    <button class="cat-tab" onclick="switchCatTab('income')" id="tab-income">💵 Доходы</button>
+                </div>
+
+                <div id="categories-list-expense" class="categories-list"></div>
+                <div id="categories-list-income" class="categories-list" style="display:none"></div>
+
+                <div class="cat-add-block">
+                    <h4>➕ Добавить категорию</h4>
+                    <div class="cat-add-grid">
+                        <input type="text" id="cat-new-icon" placeholder="😀" maxlength="4">
+                        <input type="text" id="cat-new-name" placeholder="Название">
+                        <input type="color" id="cat-new-color" value="#3498db">
+                        <button onclick="addCategoryFromForm()">Добавить</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
