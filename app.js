@@ -1,15 +1,15 @@
 // --- Состояние ---
-let balance = 0;         // свободные деньги
-let transactions = [];   // история
-let goals = [];          // цели (накопления)
-let envelopes = [];      // конверты (выделенные суммы на период)
+let balance = 0;
+let transactions = [];
+let goals = [];
+let envelopes = [];
 
 // --- Утилиты ---
 const formatMoney = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
 const formatDate = (iso) => new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const formatPeriod = (from, to) => `${new Date(from).toLocaleDateString('ru-RU')} — ${new Date(to).toLocaleDateString('ru-RU')}`;
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-const today = () => new Date().toISOString().split('T')[0];
+const sumReserves = (reserves) => (reserves || []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
 
 // --- Сохранение / Загрузка ---
 function saveData() {
@@ -22,7 +22,10 @@ function loadData() {
         balance = data.balance || 0;
         transactions = data.transactions || [];
         goals = data.goals || [];
-        envelopes = data.envelopes || [];
+        envelopes = (data.envelopes || []).map(env => ({
+            ...env,
+            reserves: env.reserves || [] // миграция со старого формата
+        }));
     }
 }
 
@@ -113,18 +116,31 @@ function renderEnvelopes() {
     }
     const now = new Date();
     container.innerHTML = envelopes.map(env => {
+        const reserves = env.reserves || [];
+        const minKeep = sumReserves(reserves);
         const remaining = env.limit - env.spent;
         const progress = env.limit > 0 ? Math.min((env.spent / env.limit) * 100, 100) : 0;
         const over = env.spent > env.limit;
         const remClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
         const expired = new Date(env.dateTo) < now;
-        const minWarn = remaining < env.minKeep;
+
+        // Плашки резервов
+        const reservesChips = reserves.length === 0
+            ? ''
+            : reserves.map((r, idx) => `
+                <span class="reserve-chip">
+                    🔒 ${r.name}: <span class="chip-amount">${formatMoney(r.amount)}</span>
+                    <button class="chip-remove" onclick="removeReserveFromEnvelope('${env.id}', ${idx})" title="Удалить">×</button>
+                </span>
+            `).join('');
 
         let minBlock = '';
-        if (remaining >= env.minKeep) {
-            minBlock = `<div class="envelope-min-ok">✅ Обязательный остаток ${formatMoney(env.minKeep)} сохранён</div>`;
-        } else {
-            minBlock = `<div class="envelope-min-warn">⚠️ Ты ниже обязательного остатка! Должно остаться минимум ${formatMoney(env.minKeep)}, а сейчас ${formatMoney(remaining)}</div>`;
+        if (reserves.length > 0) {
+            if (remaining >= minKeep) {
+                minBlock = `<div class="envelope-min-ok">✅ Обязательный остаток ${formatMoney(minKeep)} сохранён</div>`;
+            } else {
+                minBlock = `<div class="envelope-min-warn">⚠️ Ты ниже обязательного остатка! Нужно оставить минимум ${formatMoney(minKeep)}, а сейчас ${formatMoney(remaining)}</div>`;
+            }
         }
 
         return `
@@ -137,8 +153,13 @@ function renderEnvelopes() {
                 <div class="envelope-stats">
                     <span>Выделено: <strong>${formatMoney(env.limit)}</strong></span>
                     <span>Потрачено: <strong>${formatMoney(env.spent)}</strong></span>
-                    <span>Обязательный остаток: <strong>${formatMoney(env.minKeep)}</strong></span>
                 </div>
+
+                <div class="reserves-list">
+                    ${reservesChips}
+                    <button class="btn-add-reserve-inline" onclick="addReserveToEnvelope('${env.id}')">+ резерв</button>
+                </div>
+
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div>
                 </div>
@@ -154,6 +175,65 @@ function renderEnvelopes() {
     }).join('');
 }
 
+// --- Динамические резервы в форме ---
+window.addReserveRow = (name = '', amount = '') => {
+    const list = document.getElementById('reserves-form-list');
+    const row = document.createElement('div');
+    row.className = 'reserve-row';
+    row.innerHTML = `
+        <input type="text" class="reserve-name" placeholder="Причина (на проезд)" value="${name}">
+        <input type="number" class="reserve-amount" placeholder="Сумма" min="0" step="0.01" value="${amount}">
+        <button type="button" class="btn-remove-reserve" onclick="this.parentElement.remove()">×</button>
+    `;
+    list.appendChild(row);
+};
+
+function collectReservesFromForm() {
+    const rows = document.querySelectorAll('#reserves-form-list .reserve-row');
+    const reserves = [];
+    rows.forEach(row => {
+        const name = row.querySelector('.reserve-name').value.trim();
+        const amount = parseFloat(row.querySelector('.reserve-amount').value);
+        if (name && !isNaN(amount) && amount > 0) {
+            reserves.push({ name, amount });
+        }
+    });
+    return reserves;
+}
+
+// --- Добавление/удаление резерва у существующего конверта ---
+window.addReserveToEnvelope = (id) => {
+    const env = envelopes.find(x => x.id === id);
+    if (!env) return;
+    const name = prompt('Причина резерва (на что должно остаться):', 'На проезд');
+    if (name === null || !name.trim()) return;
+    const amountStr = prompt('Сумма резерва:', '1000');
+    if (amountStr === null) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) return;
+
+    if (!env.reserves) env.reserves = [];
+    env.reserves.push({ name: name.trim(), amount });
+
+    const totalMin = sumReserves(env.reserves);
+    if (totalMin > env.limit) {
+        alert(`Внимание: сумма резервов (${formatMoney(totalMin)}) больше выделенной суммы (${formatMoney(env.limit)})!`);
+    }
+
+    saveData();
+    render();
+};
+
+window.removeReserveFromEnvelope = (id, idx) => {
+    const env = envelopes.find(x => x.id === id);
+    if (!env || !env.reserves) return;
+    if (!confirm(`Удалить резерв «${env.reserves[idx].name}»?`)) return;
+    env.reserves.splice(idx, 1);
+    saveData();
+    render();
+};
+
+// --- Операции с конвертами ---
 window.spendFromEnvelope = (id) => {
     const env = envelopes.find(x => x.id === id);
     if (!env) return;
@@ -206,10 +286,6 @@ window.editEnvelope = (id) => {
     if (newFrom === null) return;
     const newTo = prompt('Дата конца (ГГГГ-ММ-ДД):', env.dateTo);
     if (newTo === null) return;
-    const newMinStr = prompt('Обязательный остаток на конец периода:', env.minKeep);
-    if (newMinStr === null) return;
-    const newMin = parseFloat(newMinStr);
-    if (isNaN(newMin) || newMin < 0) return;
 
     const diff = newLimit - env.limit;
     if (diff > 0) {
@@ -231,7 +307,6 @@ window.editEnvelope = (id) => {
     env.limit = newLimit;
     env.dateFrom = newFrom;
     env.dateTo = newTo;
-    env.minKeep = newMin;
     saveData();
     render();
 };
@@ -291,12 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     render();
 
-    // Даты по умолчанию — с 1-го числа текущего месяца по последнее
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     document.getElementById('env-date-from').value = firstDay;
     document.getElementById('env-date-to').value = lastDay;
+
+    // По умолчанию одна пустая строка резерва
+    addReserveRow();
 
     // Доход
     document.getElementById('income-form').addEventListener('submit', (e) => {
@@ -311,59 +388,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Расход
-    document.getElementById('expense-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const amount = parseFloat(document.getElementById('expense-amount').value);
-        const desc = document.getElementById('expense-desc').value.trim();
-        if (isNaN(amount) || amount <= 0 || !desc) return;
-        if (amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
-        balance -= amount;
-        transactions.push({ id: generateId(), type: 'expense', amount, desc, date: new Date().toISOString() });
-        saveData(); render();
-        e.target.reset();
-    });
-
-    // Цель
-    document.getElementById('goal-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('goal-name').value.trim();
-        const target = parseFloat(document.getElementById('goal-target').value);
-        if (!name || isNaN(target) || target <= 0) return;
-        goals.push({ id: generateId(), name, target, saved: 0 });
-        saveData(); render();
-        e.target.reset();
-    });
-
-    // Конверт
-    document.getElementById('envelope-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('env-name').value.trim();
-        const limit = parseFloat(document.getElementById('env-limit').value);
-        const dateFrom = document.getElementById('env-date-from').value;
-        const dateTo = document.getElementById('env-date-to').value;
-        const minKeep = parseFloat(document.getElementById('env-min').value) || 0;
-
-        if (!name || isNaN(limit) || limit <= 0) return;
-        if (!dateFrom || !dateTo) { alert('Укажи период'); return; }
-        if (new Date(dateTo) < new Date(dateFrom)) { alert('Дата конца раньше начала'); return; }
-        if (limit > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
-        if (minKeep > limit) { alert('Обязательный остаток не может быть больше выделенной суммы'); return; }
-
-        balance -= limit;
-        envelopes.push({
-            id: generateId(),
-            name, limit, spent: 0,
-            dateFrom, dateTo, minKeep
-        });
-        transactions.push({
-            id: generateId(), type: 'transfer', amount: limit,
-            desc: `Создан конверт «${name}»`, date: new Date().toISOString()
-        });
-        saveData(); render();
-        e.target.reset();
-        // Вернуть даты по умолчанию
-        document.getElementById('env-date-from').value = firstDay;
-        document.getElementById('env-date-to').value = lastDay;
-        document.getElementById('env-min').value = 0;
-    });
-});
+    document.getElementById('expense-form').addEventListener('submit', (e) =>
