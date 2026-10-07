@@ -294,3 +294,83 @@ button:hover { background: #2980b9; }
     .chart-card.full-width { grid-column: span 1; }
     .chart-wrap { height: 240px; }
 }
+/* ===== ЭТАП 4: БЮДЖЕТ, РЕГУЛЯРНЫЕ, ДОЛГИ ===== */
+
+/* Бюджет */
+#budget-status {
+    background: white; border-radius: 12px; padding: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-top: 15px;
+}
+.budget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+.budget-title { font-weight: bold; font-size: 1.1rem; color: #2c3e50; }
+.budget-numbers { font-size: 1.05rem; font-weight: bold; }
+.budget-numbers.ok { color: #27ae60; }
+.budget-numbers.warn { color: #f39c12; }
+.budget-numbers.over { color: #e74c3c; }
+.budget-progress-bg { background: #eee; height: 14px; border-radius: 7px; overflow: hidden; margin: 10px 0; }
+.budget-progress-fill { height: 100%; width: 0%; transition: width 0.3s; background: #27ae60; }
+.budget-progress-fill.warn { background: #f39c12; }
+.budget-progress-fill.over { background: #e74c3c; }
+.budget-info { font-size: 0.85rem; color: #666; }
+.budget-warning {
+    background: #fff3cd; color: #856404; padding: 10px 14px;
+    border-radius: 8px; font-size: 0.85rem; margin-top: 10px;
+}
+
+/* Регулярные */
+.recurring-form-grid,
+.debt-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 10px; align-items: center;
+}
+.recurring-form-grid button { background: #16a085; white-space: nowrap; }
+.recurring-form-grid button:hover { background: #12876f; }
+
+.recurring-form-grid select,
+.debt-form-grid select { padding: 12px; }
+
+.recurring-item, .debt-item {
+    background: white; border-radius: 12px; padding: 15px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px; flex-wrap: wrap;
+}
+.recurring-item.paid { opacity: 0.6; background: #f0f9f0; }
+.recurring-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.recurring-name { font-weight: bold; color: #2c3e50; }
+.recurring-meta { font-size: 0.8rem; color: #888; }
+.recurring-amount { font-weight: bold; font-size: 1.05rem; }
+.recurring-amount.expense { color: #e74c3c; }
+.recurring-amount.income { color: #27ae60; }
+.recurring-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.recurring-actions button { padding: 8px 12px; font-size: 0.8rem; }
+.btn-mark-paid { background: #27ae60; }
+.btn-mark-paid:hover { background: #219a52; }
+.btn-unpaid { background: #95a5a6; }
+.btn-unpaid:hover { background: #7f8c8d; }
+
+/* Долги */
+.debt-form-grid { grid-template-columns: 1fr 2fr 1fr 2fr auto; }
+.debt-form-grid button { background: #8e44ad; white-space: nowrap; }
+.debt-form-grid button:hover { background: #7d3c98; }
+
+.debt-item.iOwe { border-left: 5px solid #e74c3c; }
+.debt-item.theyOwe { border-left: 5px solid #27ae60; }
+.debt-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.debt-person { font-weight: bold; color: #2c3e50; }
+.debt-desc { font-size: 0.8rem; color: #888; }
+.debt-amount { font-weight: bold; font-size: 1.05rem; }
+.debt-amount.iOwe { color: #e74c3c; }
+.debt-amount.theyOwe { color: #27ae60; }
+.debt-actions { display: flex; gap: 6px; }
+.debt-actions button { padding: 8px 12px; font-size: 0.8rem; }
+.btn-close-debt { background: #27ae60; }
+.btn-close-debt:hover { background: #219a52; }
+
+@media (max-width: 700px) {
+    .recurring-form-grid,
+    .debt-form-grid { grid-template-columns: 1fr 1fr; }
+    .recurring-form-grid button,
+    .debt-form-grid button { grid-column: span 2; }
+}
