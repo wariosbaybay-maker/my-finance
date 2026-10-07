@@ -500,8 +500,22 @@ button:hover { background: #2980b9; }
 
 /* Форма конверта теперь с чекбоксами — переопределяем сетку */
 .envelope-form-grid {
-    grid-template-columns: 2fr 1fr 1fr 1fr auto auto auto !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr 1fr !important;
+    grid-template-areas:
+        "name name limit limit"
+        "from from to to"
+        "auto template button button" !important;
+    gap: 10px !important;
+    align-items: center !important;
 }
+.envelope-form-grid #env-name { grid-area: name; }
+.envelope-form-grid #env-limit { grid-area: limit; }
+.envelope-form-grid #env-date-from { grid-area: from; }
+.envelope-form-grid #env-date-to { grid-area: to; }
+.envelope-form-grid #env-autorenew { grid-area: auto; }
+.envelope-form-grid #env-save-template { grid-area: template; }
+.envelope-form-grid button { grid-area: button; }
 .reserve-form-grid {
     grid-template-columns: 2fr 1fr 1fr 1fr auto !important;
 }
