@@ -1,16 +1,16 @@
 // --- Состояние ---
-let balance = 0;
-let transactions = [];
-let goals = [];
+let balance = 0;            // свободные деньги (не в конвертах)
+let transactions = [];      // история
+let envelopes = [];         // конверты (бюджеты)
 
 // --- Утилиты ---
-const formatMoney = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(n);
-const formatDate = (iso) => new Date(iso).toLocaleDateString('ru-RU');
+const formatMoney = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
+const formatDate = (iso) => new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 // --- Сохранение / Загрузка ---
 function saveData() {
-    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals }));
+    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, envelopes }));
 }
 function loadData() {
     const saved = localStorage.getItem('financeData');
@@ -18,148 +18,212 @@ function loadData() {
         const data = JSON.parse(saved);
         balance = data.balance || 0;
         transactions = data.transactions || [];
-        goals = data.goals || [];
+        envelopes = data.envelopes || [];
     }
 }
 
 // --- Рендеринг ---
 function render() {
+    const totalInEnv = envelopes.reduce((s, e) => s + e.limit, 0);
     document.getElementById('total-balance').textContent = formatMoney(balance);
+    document.getElementById('in-envelopes').textContent = `В конвертах: ${formatMoney(totalInEnv)}`;
+    renderEnvelopes();
     renderTransactions();
-    renderGoals();
 }
 
-function renderTransactions() {
-    const container = document.getElementById('transactions-list');
-    if (transactions.length === 0) {
-        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Пока нет операций</p>';
+function renderEnvelopes() {
+    const container = document.getElementById('envelopes-list');
+    if (envelopes.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет конвертов. Создай первый выше.</p>';
         return;
     }
-    // Показываем сначала новые
-    const sorted = [...transactions].reverse();
-    container.innerHTML = sorted.map(tx => `
-        <div class="transaction-item ${tx.type}">
-            <div>
-                <span>${tx.desc}</span>
-                <span class="tx-date">${formatDate(tx.date)}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <strong>${tx.type === 'income' ? '+' : '-'}${formatMoney(tx.amount)}</strong>
-                <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">×</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function renderGoals() {
-    const container = document.getElementById('goals-list');
-    if (goals.length === 0) {
-        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Нет активных целей</p>';
-        return;
-    }
-    container.innerHTML = goals.map(goal => {
-        const progress = Math.min((goal.saved / goal.target) * 100, 100);
-        const remaining = goal.target - goal.saved;
+    container.innerHTML = envelopes.map(env => {
+        const remaining = env.limit - env.spent;
+        const progress = env.limit > 0 ? Math.min((env.spent / env.limit) * 100, 100) : 0;
+        const over = env.spent > env.limit;
+        const remClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
         return `
-            <div class="goal-item">
-                <div class="goal-header">
-                    <span>${goal.name}</span>
-                    <span>${formatMoney(goal.saved)} / ${formatMoney(goal.target)}</span>
+            <div class="envelope">
+                <div class="envelope-header">
+                    <span class="envelope-name">📁 ${env.name}</span>
+                    <span class="envelope-remaining ${remClass}">${formatMoney(remaining)}</span>
+                </div>
+                <div class="envelope-stats">
+                    <span>Выделено: <strong>${formatMoney(env.limit)}</strong></span>
+                    <span>Потрачено: <strong>${formatMoney(env.spent)}</strong></span>
                 </div>
                 <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                    <div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div>
                 </div>
-                <small style="color:#666;">Осталось накопить: ${formatMoney(Math.max(remaining, 0))}</small>
-                <div class="goal-actions">
-                    <input type="number" id="add-to-goal-${goal.id}" placeholder="Сумма" min="1" step="0.01">
-                    <button onclick="addToGoal('${goal.id}')">Отложить</button>
-                    <button class="delete-btn" style="background:#e74c3c; color:white; border-radius:4px;" onclick="deleteGoal('${goal.id}')">Удалить</button>
+                <div class="envelope-actions">
+                    <button class="btn-spend" onclick="spendFromEnvelope('${env.id}')">💸 Потратить</button>
+                    <button class="btn-refill" onclick="refillEnvelope('${env.id}')">➕ Пополнить</button>
+                    <button class="btn-edit" onclick="editEnvelope('${env.id}')">✏️ Изменить</button>
+                    <button class="btn-close" onclick="closeEnvelope('${env.id}')">✖ Закрыть</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// --- Логика операций ---
+function renderTransactions() {
+    const container = document.getElementById('transactions-list');
+    if (transactions.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет операций</p>';
+        return;
+    }
+    const sorted = [...transactions].reverse();
+    container.innerHTML = sorted.map(tx => {
+        const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '-' : '');
+        return `
+            <div class="transaction-item ${tx.type}">
+                <div class="tx-info">
+                    <span class="tx-desc">${tx.desc}</span>
+                    <span class="tx-date">${formatDate(tx.date)}</span>
+                </div>
+                <div class="tx-right">
+                    <span class="tx-amount ${tx.type}">${sign}${formatMoney(tx.amount)}</span>
+                    <button class="delete-btn" onclick="deleteTransaction('${tx.id}')">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// --- Операции с балансом ---
 function addTransaction(type, amount, desc) {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) return;
+    const num = parseFloat(amount);
+    if (isNaN(num) || num <= 0) return false;
 
     if (type === 'income') {
-        balance += numAmount;
-    } else {
-        // Если расход больше баланса, не даем уйти в минус (по желанию)
-        if (numAmount > balance) {
-            alert('Недостаточно средств на балансе!');
-            return;
-        }
-        balance -= numAmount;
+        balance += num;
+    } else if (type === 'expense') {
+        if (num > balance) { alert('Недостаточно свободных денег!'); return false; }
+        balance -= num;
     }
 
-    transactions.push({
-        id: generateId(),
-        type,
-        amount: numAmount,
-        desc,
-        date: new Date().toISOString()
-    });
-
+    transactions.push({ id: generateId(), type, amount: num, desc, date: new Date().toISOString() });
     saveData();
     render();
+    return true;
 }
 
 window.deleteTransaction = (id) => {
-    const txIndex = transactions.findIndex(t => t.id === id);
-    if (txIndex === -1) return;
-    const tx = transactions[txIndex];
-    // Откатываем баланс
+    const idx = transactions.findIndex(t => t.id === id);
+    if (idx === -1) return;
+    if (!confirm('Удалить операцию? Баланс будет скорректирован.')) return;
+    const tx = transactions[idx];
     if (tx.type === 'income') balance -= tx.amount;
-    else balance += tx.amount;
-
-    transactions.splice(txIndex, 1);
+    else if (tx.type === 'expense') balance += tx.amount;
+    transactions.splice(idx, 1);
     saveData();
     render();
 };
 
-// --- Логика целей ---
-window.addToGoal = (goalId) => {
-    const input = document.getElementById(`add-to-goal-${goalId}`);
-    const amount = parseFloat(input.value);
+// --- Операции с конвертами ---
+window.spendFromEnvelope = (envId) => {
+    const env = envelopes.find(e => e.id === envId);
+    if (!env) return;
+    const amountStr = prompt(`Сколько потратили из «${env.name}»?\nДоступно: ${formatMoney(env.limit - env.spent)}`);
+    if (amountStr === null) return;
+    const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) return;
-    if (amount > balance) {
-        alert('Недостаточно свободных средств на балансе!');
-        return;
-    }
 
-    const goal = goals.find(g => g.id === goalId);
-    if (!goal) return;
+    const desc = prompt('На что потратили?', 'Покупка') || 'Покупка';
 
-    // Списываем с баланса и добавляем в цель
-    balance -= amount;
-    goal.saved += amount;
-
-    // Записываем как расход
+    env.spent += amount;
     transactions.push({
         id: generateId(),
         type: 'expense',
-        amount: amount,
-        desc: `Отложено на: ${goal.name}`,
-        date: new Date().toISOString()
+        amount,
+        desc: `${env.name}: ${desc}`,
+        date: new Date().toISOString(),
+        envelopeId: env.id
     });
-
-    input.value = '';
     saveData();
     render();
 };
 
-window.deleteGoal = (goalId) => {
-    if (!confirm('Удалить цель? Накопленные деньги вернутся на баланс.')) return;
-    const idx = goals.findIndex(g => g.id === goalId);
-    if (idx === -1) return;
-    const goal = goals[idx];
-    // Возвращаем деньги на баланс
-    balance += goal.saved;
-    goals.splice(idx, 1);
+window.refillEnvelope = (envId) => {
+    const env = envelopes.find(e => e.id === envId);
+    if (!env) return;
+    const amountStr = prompt(`Сколько добавить в «${env.name}»?\nСвободно: ${formatMoney(balance)}`);
+    if (amountStr === null) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) return;
+    if (amount > balance) { alert('Недостаточно свободных денег!'); return; }
+
+    balance -= amount;
+    env.limit += amount;
+    transactions.push({
+        id: generateId(),
+        type: 'transfer',
+        amount,
+        desc: `Пополнение конверта «${env.name}»`,
+        date: new Date().toISOString(),
+        envelopeId: env.id
+    });
+    saveData();
+    render();
+};
+
+window.editEnvelope = (envId) => {
+    const env = envelopes.find(e => e.id === envId);
+    if (!env) return;
+    const newName = prompt('Новое название:', env.name);
+    if (newName === null) return;
+    const newLimitStr = prompt('Новый лимит (выделенная сумма):', env.limit);
+    if (newLimitStr === null) return;
+    const newLimit = parseFloat(newLimitStr);
+    if (isNaN(newLimit) || newLimit <= 0) return;
+
+    const diff = newLimit - env.limit;
+    if (diff > 0) {
+        // увеличиваем лимит — нужно списать с баланса
+        if (diff > balance) { alert(`Недостаточно свободных денег! Нужно ещё ${formatMoney(diff - balance)}`); return; }
+        balance -= diff;
+        transactions.push({
+            id: generateId(),
+            type: 'transfer',
+            amount: diff,
+            desc: `Увеличение лимита «${newName}»`,
+            date: new Date().toISOString(),
+            envelopeId: env.id
+        });
+    } else if (diff < 0) {
+        // уменьшаем лимит — вернуть на баланс
+        balance += Math.abs(diff);
+        transactions.push({
+            id: generateId(),
+            type: 'transfer',
+            amount: Math.abs(diff),
+            desc: `Уменьшение лимита «${newName}»`,
+            date: new Date().toISOString(),
+            envelopeId: env.id
+        });
+    }
+
+    env.name = newName;
+    env.limit = newLimit;
+    saveData();
+    render();
+};
+
+window.closeEnvelope = (envId) => {
+    const env = envelopes.find(e => e.id === envId);
+    if (!env) return;
+    const remaining = env.limit - env.spent;
+    if (!confirm(`Закрыть конверт «${env.name}»?\nОстаток ${formatMoney(remaining)} вернётся на баланс.`)) return;
+
+    balance += remaining;
+    transactions.push({
+        id: generateId(),
+        type: 'transfer',
+        amount: remaining,
+        desc: `Закрытие конверта «${env.name}»`,
+        date: new Date().toISOString()
+    });
+    envelopes = envelopes.filter(e => e.id !== envId);
     saveData();
     render();
 };
@@ -173,32 +237,32 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const amount = document.getElementById('income-amount').value;
         const desc = document.getElementById('income-desc').value;
-        addTransaction('income', amount, desc);
-        e.target.reset();
+        if (addTransaction('income', amount, desc)) e.target.reset();
     });
 
-    document.getElementById('expense-form').addEventListener('submit', (e) => {
+    document.getElementById('envelope-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        const amount = document.getElementById('expense-amount').value;
-        const desc = document.getElementById('expense-desc').value;
-        addTransaction('expense', amount, desc);
-        e.target.reset();
-    });
+        const name = document.getElementById('env-name').value.trim();
+        const limit = parseFloat(document.getElementById('env-limit').value);
+        if (!name || isNaN(limit) || limit <= 0) return;
+        if (limit > balance) { alert(`Недостаточно свободных денег! У тебя ${formatMoney(balance)}`); return; }
 
-    document.getElementById('goal-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('goal-name').value;
-        const target = parseFloat(document.getElementById('goal-target').value);
-        if (name && !isNaN(target) && target > 0) {
-            goals.push({
-                id: generateId(),
-                name,
-                target,
-                saved: 0
-            });
-            saveData();
-            render();
-            e.target.reset();
-        }
+        balance -= limit;
+        envelopes.push({
+            id: generateId(),
+            name,
+            limit,
+            spent: 0
+        });
+        transactions.push({
+            id: generateId(),
+            type: 'transfer',
+            amount: limit,
+            desc: `Создан конверт «${name}»`,
+            date: new Date().toISOString()
+        });
+        saveData();
+        render();
+        e.target.reset();
     });
 });
