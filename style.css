@@ -32,6 +32,7 @@ button:hover { background: #2980b9; }
 .inline-form input { flex: 1; min-width: 150px; }
 .inline-form button { flex: 0 0 auto; white-space: nowrap; }
 
+/* Сетки форм с датами */
 .reserve-form-grid,
 .envelope-form-grid {
     display: grid;
@@ -46,8 +47,11 @@ button:hover { background: #2980b9; }
 .envelope-form-grid button { background: #9b59b6; white-space: nowrap; }
 .envelope-form-grid button:hover { background: #8e44ad; }
 
-#goals-list, #envelopes-list, #reserves-list, #transactions-list { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; }
+#goals-list, #envelopes-list, #reserves-list, #transactions-list {
+    display: flex; flex-direction: column; gap: 15px; margin-top: 15px;
+}
 
+/* РЕЗЕРВЫ */
 .reserve {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -87,6 +91,7 @@ button:hover { background: #2980b9; }
 .btn-close-reserve { background: #95a5a6; }
 .btn-close-reserve:hover { background: #7f8c8d; }
 
+/* ЦЕЛИ */
 .goal {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -104,6 +109,7 @@ button:hover { background: #2980b9; }
 .btn-close { background: #95a5a6; }
 .btn-close:hover { background: #7f8c8d; }
 
+/* КОНВЕРТЫ */
 .envelope {
     background: white; border-radius: 12px; padding: 18px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -128,6 +134,7 @@ button:hover { background: #2980b9; }
 .btn-edit { background: #f39c12; }
 .btn-edit:hover { background: #d68910; }
 
+/* ИСТОРИЯ */
 .transaction-item {
     background: white; border-radius: 10px; padding: 12px 15px;
     display: flex; justify-content: space-between; align-items: center;
