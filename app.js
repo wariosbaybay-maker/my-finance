@@ -1435,3 +1435,276 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('goal-icon').value = '';
     });
 });
+// ===== ЭТАП 6: УЛУЧШЕНИЯ КОНВЕРТОВ И РЕЗЕРВОВ =====
+
+// === ШАБЛОНЫ ===
+function getTemplates() {
+    try { return JSON.parse(localStorage.getItem('financeTemplates')) || []; }
+    catch { return []; }
+}
+function saveTemplates(list) {
+    localStorage.setItem('financeTemplates', JSON.stringify(list));
+}
+
+function renderTemplates() {
+    const block = document.getElementById('templates-block');
+    const list = document.getElementById('templates-list');
+    if (!block || !list) return;
+    const tpls = getTemplates();
+    if (tpls.length === 0) { block.style.display = 'none'; return; }
+    block.style.display = 'block';
+    list.innerHTML = tpls.map((t, i) => `
+        <div class="template-chip" onclick="createFromTemplate(${i})">
+            ⚡ ${t.name} · ${formatMoney(t.limit)}
+            <span class="chip-del" onclick="event.stopPropagation();deleteTemplate(${i})">×</span>
+        </div>
+    `).join('');
+}
+
+window.createFromTemplate = (idx) => {
+    const tpls = getTemplates();
+    const t = tpls[idx];
+    if (!t) return;
+    if (t.limit > balance) { alert(`Недостаточно денег! Нужно ${formatMoney(t.limit)}, свободно ${formatMoney(balance)}`); return; }
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    balance -= t.limit;
+    envelopes.push({
+        id: generateId(), name: t.name, limit: t.limit, spent: 0,
+        dateFrom: firstDay, dateTo: lastDay, autoRenew: false
+    });
+    transactions.push({
+        id: generateId(), type: 'transfer', amount: t.limit,
+        desc: `Создан конверт «${t.name}» (из шаблона)`,
+        date: new Date().toISOString()
+    });
+    saveData(); render();
+};
+
+window.deleteTemplate = (idx) => {
+    if (!confirm('Удалить шаблон?')) return;
+    const tpls = getTemplates();
+    tpls.splice(idx, 1);
+    saveTemplates(tpls);
+    renderTemplates();
+};
+
+// === ПЕРЕБРОС МЕЖДУ КОНВЕРТАМИ ===
+window.transferBetweenEnvelopes = (fromId) => {
+    const from = envelopes.find(x => x.id === fromId);
+    if (!from) return;
+    const otherEnvs = envelopes.filter(x => x.id !== fromId);
+    if (otherEnvs.length === 0) { alert('Нет других конвертов'); return; }
+
+    const list = otherEnvs.map((e, i) => `${i + 1}. ${e.name} (${formatMoney(e.limit - e.spent)} свободно)`).join('\n');
+    const choice = prompt(`Куда перебросить из «${from.name}»?\nДоступно: ${formatMoney(from.limit - from.spent)}\n\n${list}\n\nВведи номер:`);
+    if (choice === null) return;
+    const idx = parseInt(choice) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= otherEnvs.length) return;
+    const to = otherEnvs[idx];
+
+    const amountStr = prompt(`Сколько перебросить в «${to.name}»?`, '500');
+    if (amountStr === null) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) return;
+    if (amount > (from.limit - from.spent)) { alert('Недостаточно в конверте-источнике'); return; }
+
+    from.limit -= amount;
+    to.limit += amount;
+    transactions.push({
+        id: generateId(), type: 'transfer', amount,
+        desc: `Переброс: ${from.name} → ${to.name}`,
+        date: new Date().toISOString()
+    });
+    saveData(); render();
+};
+
+// === АВТОПРОДЛЕНИЕ ===
+function checkAutoRenew() {
+    const now = new Date();
+    let changed = false;
+    envelopes.forEach(env => {
+        if (env.autoRenew && new Date(env.dateTo) < now) {
+            // Продлеваем на такой же период вперёд
+            const duration = new Date(env.dateTo) - new Date(env.dateFrom);
+            const newFrom = new Date(env.dateTo);
+            const newTo = new Date(newFrom.getTime() + duration);
+            env.dateFrom = newFrom.toISOString().split('T')[0];
+            env.dateTo = newTo.toISOString().split('T')[0];
+            env.spent = 0;
+            changed = true;
+        }
+    });
+    if (changed) saveData();
+}
+
+// === ОПОВЕЩЕНИЯ О ЛИМИТЕ ===
+function getEnvelopeLimitBlock(env) {
+    const remaining = env.limit - env.spent;
+    const percent = env.limit > 0 ? (env.spent / env.limit) * 100 : 0;
+    if (percent >= 100) {
+        return `<div class="limit-over">🚨 Конверт исчерпан! Потрачено ${formatMoney(env.spent)} из ${formatMoney(env.limit)}</div>`;
+    }
+    if (percent >= 80) {
+        return `<div class="limit-warn">⚠️ Использовано ${percent.toFixed(0)}%. Осталось ${formatMoney(remaining)}</div>`;
+    }
+    return '';
+}
+
+// === ПЕРЕОПРЕДЕЛЯЕМ РЕНДЕР КОНВЕРТОВ ===
+function renderEnvelopesImproved() {
+    const container = document.getElementById('envelopes-list');
+    if (!container) return;
+    if (envelopes.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет конвертов</p>';
+        return;
+    }
+    const now = new Date();
+    container.innerHTML = envelopes.map(env => {
+        const remaining = env.limit - env.spent;
+        const progress = env.limit > 0 ? Math.min((env.spent / env.limit) * 100, 100) : 0;
+        const over = env.spent > env.limit;
+        const remClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
+        const expired = new Date(env.dateTo) < now;
+        const limitBlock = getEnvelopeLimitBlock(env);
+        const autoBadge = env.autoRenew ? '<span class="auto-renew-badge">🔄 авто</span>' : '';
+
+        return `
+            <div class="envelope ${expired ? 'expired' : ''}">
+                <div class="envelope-header">
+                    <span class="envelope-name">📁 ${env.name}${autoBadge} ${expired ? '<small style="color:#e74c3c">(период истёк)</small>' : ''}</span>
+                    <span class="envelope-remaining ${remClass}">${formatMoney(remaining)}</span>
+                </div>
+                <div class="envelope-period">Период: ${formatPeriod(env.dateFrom, env.dateTo)}</div>
+                <div class="envelope-stats">
+                    <span>Выделено: <strong>${formatMoney(env.limit)}</strong></span>
+                    <span>Потрачено: <strong>${formatMoney(env.spent)}</strong></span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div></div>
+                ${limitBlock}
+                <div class="envelope-actions">
+                    <button class="btn-spend" onclick="spendFromEnvelope('${env.id}')">💸 Потратить</button>
+                    <button class="btn-refill" onclick="refillEnvelope('${env.id}')">➕ Пополнить</button>
+                    <button class="btn-transfer-env" onclick="transferBetweenEnvelopes('${env.id}')">↔️ Переброс</button>
+                    <button class="btn-edit" onclick="editEnvelope('${env.id}')">✏️ Изменить</button>
+                    <button class="btn-close" onclick="closeEnvelope('${env.id}')">✖ Закрыть</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Аналогично для резервов
+function renderReservesImproved() {
+    const container = document.getElementById('reserves-list');
+    if (!container) return;
+    if (reserves.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Пока нет обязательных резервов</p>';
+        return;
+    }
+    const now = new Date();
+    container.innerHTML = reserves.map(r => {
+        const remaining = r.limit - r.spent;
+        const progress = r.limit > 0 ? Math.min((r.spent / r.limit) * 100, 100) : 0;
+        const over = r.spent > r.limit;
+        const remClass = remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero');
+        const expired = new Date(r.dateTo) < now;
+        const percent = r.limit > 0 ? (r.spent / r.limit) * 100 : 0;
+
+        let warnBlock = '';
+        if (expired) {
+            warnBlock = `<div class="reserve-warn">⚠️ Период резерва истёк.</div>`;
+        } else if (over) {
+            warnBlock = `<div class="limit-over">🚨 Резерв исчерпан!</div>`;
+        } else if (percent >= 80) {
+            warnBlock = `<div class="limit-warn">⚠️ Использовано ${percent.toFixed(0)}%. Осталось ${formatMoney(remaining)}</div>`;
+        } else {
+            warnBlock = `<div class="reserve-ok">✅ Осталось ${formatMoney(remaining)}</div>`;
+        }
+
+        return `
+            <div class="reserve ${expired ? 'expired' : ''}">
+                <div class="reserve-header">
+                    <span class="reserve-name">🔒 ${r.name} ${expired ? '<small style="color:#e74c3c">(истёк)</small>' : ''}</span>
+                    <span class="reserve-remaining ${remClass}">${formatMoney(remaining)}</span>
+                </div>
+                <div class="reserve-period">Период: ${formatPeriod(r.dateFrom, r.dateTo)}</div>
+                <div class="reserve-stats">
+                    <span>Зарезервировано: <strong>${formatMoney(r.limit)}</strong></span>
+                    <span>Потрачено: <strong>${formatMoney(r.spent)}</strong></span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div></div>
+                ${warnBlock}
+                <div class="reserve-actions">
+                    <button class="btn-spend-reserve" onclick="spendFromReserve('${r.id}')">💸 Потратить</button>
+                    <button class="btn-refill-reserve" onclick="refillReserve('${r.id}')">➕ Пополнить</button>
+                    <button class="btn-edit-reserve" onclick="editReserve('${r.id}')">✏️ Изменить</button>
+                    <button class="btn-close-reserve" onclick="closeReserve('${r.id}')">✖ Закрыть</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// === ПОДМЕНА РЕНДЕРА ===
+const _renderBeforeStage6 = render;
+render = function() {
+    _renderBeforeStage6();
+    if (document.getElementById('envelopes-list')) {
+        checkAutoRenew();
+        renderEnvelopesImproved();
+        renderReservesImproved();
+        renderTemplates();
+    }
+};
+
+// === СОХРАНЕНИЕ ШАБЛОНА ПРИ СОЗДАНИИ КОНВЕРТА ===
+// Перехватываем submit формы конверта, чтобы добавить логику
+document.addEventListener('DOMContentLoaded', () => {
+    const envForm = document.getElementById('envelope-form');
+    if (!envForm) return;
+
+    const newForm = envForm.cloneNode(true);
+    envForm.parentNode.replaceChild(newForm, envForm);
+
+    newForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('env-name').value.trim();
+        const limit = parseFloat(document.getElementById('env-limit').value);
+        const dateFrom = document.getElementById('env-date-from').value;
+        const dateTo = document.getElementById('env-date-to').value;
+        const autoRenew = document.getElementById('env-autorenew').checked;
+        const saveAsTemplate = document.getElementById('env-save-template').checked;
+
+        if (!name || isNaN(limit) || limit <= 0) return;
+        if (!dateFrom || !dateTo) { alert('Укажи период'); return; }
+        if (new Date(dateTo) < new Date(dateFrom)) { alert('Дата конца раньше начала'); return; }
+        if (limit > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+
+        balance -= limit;
+        envelopes.push({
+            id: generateId(), name, limit, spent: 0,
+            dateFrom, dateTo, autoRenew
+        });
+        transactions.push({
+            id: generateId(), type: 'transfer', amount: limit,
+            desc: `Создан конверт «${name}»`, date: new Date().toISOString()
+        });
+
+        if (saveAsTemplate) {
+            const tpls = getTemplates();
+            if (!tpls.find(t => t.name === name && t.limit === limit)) {
+                tpls.push({ name, limit });
+                saveTemplates(tpls);
+            }
+        }
+
+        saveData(); render();
+        newForm.reset();
+        const now = new Date();
+        document.getElementById('env-date-from').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('env-date-to').value = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    });
+});
