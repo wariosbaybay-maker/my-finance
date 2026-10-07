@@ -497,46 +497,31 @@ button:hover { background: #2980b9; }
 .btn-transfer-env { background: #3498db; }
 .btn-transfer-env:hover { background: #2980b9; }
 
-/* Форма конверта: 2 строки */
+/* Форма конверта — на всю ширину */
 .envelope-form-grid {
     display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr 1fr !important;
-    grid-template-areas:
-        "name  name  limit limit"
-        "from  from  to    to"
-        "auto  auto  template button" !important;
-    gap: 10px !important;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr !important;
+    gap: 12px !important;
     align-items: center !important;
 }
-.envelope-form-grid #env-name { grid-area: name; }
-.envelope-form-grid #env-limit { grid-area: limit; }
-.envelope-form-grid #env-date-from { grid-area: from; }
-.envelope-form-grid #env-date-to { grid-area: to; }
-.envelope-form-grid .checkbox-label:nth-of-type(1) { grid-area: auto; }
-.envelope-form-grid .checkbox-label:nth-of-type(2) { grid-area: template; }
-.envelope-form-grid button { grid-area: button; }
 .envelope-form-grid .date-label { flex-direction: row; align-items: center; gap: 6px; }
 
-/* Резервы: 2 строки */
 .reserve-form-grid {
     display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr 1fr !important;
-    grid-template-areas:
-        "name  name  amount amount"
-        "from  from  to     button" !important;
-    gap: 10px !important;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto !important;
+    gap: 12px !important;
     align-items: center !important;
 }
-.reserve-form-grid #reserve-name { grid-area: name; }
-.reserve-form-grid #reserve-amount { grid-area: amount; }
-.reserve-form-grid #reserve-date-from { grid-area: from; }
-.reserve-form-grid #reserve-date-to { grid-area: to; }
-.reserve-form-grid button { grid-area: button; }
 .reserve-form-grid .date-label { flex-direction: row; align-items: center; gap: 6px; }
 
-@media (max-width: 900px) {
-    .envelope-form-grid { grid-template-columns: 1fr 1fr !important; }
-    .envelope-form-grid button { grid-column: span 2; }
+@media (max-width: 1200px) {
+    .envelope-form-grid { grid-template-columns: 2fr 1fr 1fr 1fr !important; }
+    .envelope-form-grid .checkbox-label { grid-column: span 2; }
+    .envelope-form-grid button { grid-column: span 4; }
+}
+@media (max-width: 700px) {
+    .envelope-form-grid,
     .reserve-form-grid { grid-template-columns: 1fr 1fr !important; }
+    .envelope-form-grid button,
     .reserve-form-grid button { grid-column: span 2; }
 }
