@@ -3,15 +3,38 @@ let transactions = [];
 let goals = [];
 let envelopes = [];
 let reserves = [];
+let categories = { expense: [], income: [] };
+let currentCatTab = 'expense';
+
+const DEFAULT_CATEGORIES = {
+    expense: [
+        { id: 'e1', name: 'Еда', icon: '🍔', color: '#e67e22' },
+        { id: 'e2', name: 'Транспорт', icon: '🚌', color: '#3498db' },
+        { id: 'e3', name: 'Развлечения', icon: '🎮', color: '#9b59b6' },
+        { id: 'e4', name: 'Здоровье', icon: '💊', color: '#27ae60' },
+        { id: 'e5', name: 'Сиги', icon: '🚬', color: '#7f8c8d' },
+        { id: 'e6', name: 'Связь', icon: '📱', color: '#16a085' },
+        { id: 'e7', name: 'Жильё', icon: '🏠', color: '#c0392b' },
+        { id: 'e8', name: 'Одежда', icon: '👕', color: '#8e44ad' },
+        { id: 'e9', name: 'Другое', icon: '📦', color: '#95a5a6' }
+    ],
+    income: [
+        { id: 'i1', name: 'Зарплата', icon: '💼', color: '#27ae60' },
+        { id: 'i2', name: 'Подработка', icon: '💻', color: '#3498db' },
+        { id: 'i3', name: 'Подарок', icon: '🎁', color: '#e91e63' },
+        { id: 'i4', name: 'Возврат долга', icon: '↩️', color: '#f39c12' },
+        { id: 'i5', name: 'Другое', icon: '📦', color: '#95a5a6' }
+    ]
+};
 
 const formatMoney = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
 const formatDate = (iso) => new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const formatPeriod = (from, to) => `${new Date(from).toLocaleDateString('ru-RU')} — ${new Date(to).toLocaleDateString('ru-RU')}`;
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-// --- Сохранение / Загрузка ---
+// --- Сохранение ---
 function saveData() {
-    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals, envelopes, reserves, savedAt: new Date().toISOString() }));
+    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals, envelopes, reserves, categories, savedAt: new Date().toISOString() }));
     makeDailySnapshot();
 }
 function loadData() {
@@ -23,7 +46,22 @@ function loadData() {
         goals = data.goals || [];
         envelopes = data.envelopes || [];
         reserves = data.reserves || [];
+        categories = data.categories || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    } else {
+        categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
     }
+    // Миграция: старые операции без категории → «Другое»
+    transactions.forEach(tx => {
+        if (!tx.categoryId) {
+            const fallback = categories[tx.type] && categories[tx.type].find(c => c.name === 'Другое');
+            tx.categoryId = fallback ? fallback.id : null;
+        }
+    });
+}
+
+function getCategoryById(type, id) {
+    if (!categories[type]) return null;
+    return categories[type].find(c => c.id === id) || null;
 }
 
 // --- Версионирование ---
@@ -36,13 +74,11 @@ function makeDailySnapshot() {
     const now = Date.now();
     const last = snapshots[snapshots.length - 1];
     if (last && now - new Date(last.date).getTime() < SNAPSHOT_INTERVAL_MS) return;
-
-    const data = { balance, transactions, goals, envelopes, reserves };
+    const data = { balance, transactions, goals, envelopes, reserves, categories };
     snapshots.push({ date: new Date().toISOString(), data });
     while (snapshots.length > MAX_SNAPSHOTS) snapshots.shift();
     localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshots));
 }
-
 function getSnapshots() {
     try { return JSON.parse(localStorage.getItem(SNAPSHOT_KEY)) || []; }
     catch { return []; }
@@ -57,20 +93,11 @@ window.showVersionHistory = () => {
         list.innerHTML = snapshots.slice().reverse().map((s, i) => {
             const realIdx = snapshots.length - 1 - i;
             const txCount = (s.data.transactions || []).length;
-            const goalsCount = (s.data.goals || []).length;
-            const envCount = (s.data.envelopes || []).length;
-            const resCount = (s.data.reserves || []).length;
             return `
                 <div class="version-item">
                     <div>
                         <div class="version-date">${new Date(s.date).toLocaleString('ru-RU')}</div>
-                        <div class="version-meta">
-                            Баланс: ${formatMoney(s.data.balance || 0)} ·
-                            Операций: ${txCount} ·
-                            Целей: ${goalsCount} ·
-                            Конвертов: ${envCount} ·
-                            Резервов: ${resCount}
-                        </div>
+                        <div class="version-meta">Баланс: ${formatMoney(s.data.balance || 0)} · Операций: ${txCount}</div>
                     </div>
                     <button class="version-restore" onclick="restoreSnapshot(${realIdx})">Восстановить</button>
                 </div>
@@ -79,25 +106,19 @@ window.showVersionHistory = () => {
     }
     document.getElementById('version-modal').style.display = 'flex';
 };
-
-window.closeVersionHistory = () => {
-    document.getElementById('version-modal').style.display = 'none';
-};
-
+window.closeVersionHistory = () => { document.getElementById('version-modal').style.display = 'none'; };
 window.restoreSnapshot = (idx) => {
     const snapshots = getSnapshots();
     const snap = snapshots[idx];
     if (!snap) return;
-    if (!confirm(`Восстановить данные от ${new Date(snap.date).toLocaleString('ru-RU')}?\nТекущие данные будут заменены.`)) return;
-
+    if (!confirm(`Восстановить данные от ${new Date(snap.date).toLocaleString('ru-RU')}?`)) return;
     balance = snap.data.balance || 0;
     transactions = snap.data.transactions || [];
     goals = snap.data.goals || [];
     envelopes = snap.data.envelopes || [];
     reserves = snap.data.reserves || [];
-
-    // Сохраняем как текущее состояние без создания нового снимка
-    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals, envelopes, reserves, savedAt: new Date().toISOString() }));
+    if (snap.data.categories) categories = snap.data.categories;
+    localStorage.setItem('financeData', JSON.stringify({ balance, transactions, goals, envelopes, reserves, categories, savedAt: new Date().toISOString() }));
     closeVersionHistory();
     render();
     alert('✅ Данные восстановлены');
@@ -105,21 +126,15 @@ window.restoreSnapshot = (idx) => {
 
 // --- Бэкап ---
 window.downloadBackup = () => {
-    const data = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        balance, transactions, goals, envelopes, reserves
-    };
+    const data = { version: 2, exportedAt: new Date().toISOString(), balance, transactions, goals, envelopes, reserves, categories };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const date = new Date().toISOString().split('T')[0];
     a.href = url;
-    a.download = `finance-backup-${date}.json`;
+    a.download = `finance-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
 };
-
 window.uploadBackup = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -133,29 +148,25 @@ window.uploadBackup = (event) => {
             goals = data.goals || [];
             envelopes = data.envelopes || [];
             reserves = data.reserves || [];
-            saveData();
-            render();
+            categories = data.categories || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+            saveData(); render();
             alert('✅ Данные загружены');
-        } catch (err) {
-            alert('❌ Не удалось прочитать файл: ' + err.message);
-        }
+        } catch (err) { alert('❌ Не удалось прочитать файл: ' + err.message); }
     };
     reader.readAsText(file);
     event.target.value = '';
 };
 
-// --- Автобэкап-напоминание ---
 const LAST_BACKUP_KEY = 'financeLastBackupReminder';
 function checkBackupReminder() {
     const last = localStorage.getItem(LAST_BACKUP_KEY);
     const now = Date.now();
     const week = 7 * 24 * 60 * 60 * 1000;
     if (!last || now - parseInt(last) > week) {
-        // Показываем только если есть что бэкапить
         const hasData = transactions.length > 0 || goals.length > 0 || envelopes.length > 0 || reserves.length > 0;
         if (hasData) {
             setTimeout(() => {
-                if (confirm('💾 Прошла неделя с последнего бэкапа. Скачать резервную копию сейчас?')) {
+                if (confirm('💾 Прошла неделя с последнего бэкапа. Скачать резервную копию?')) {
                     downloadBackup();
                     localStorage.setItem(LAST_BACKUP_KEY, now.toString());
                 }
@@ -163,6 +174,85 @@ function checkBackupReminder() {
         }
     }
 }
+
+// --- Заполнение селектов категорий ---
+function fillCategorySelects() {
+    ['income', 'expense'].forEach(type => {
+        const sel = document.getElementById(`${type}-category`);
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = categories[type].map(c =>
+            `<option value="${c.id}">${c.icon} ${c.name}</option>`
+        ).join('');
+        if (prev && categories[type].find(c => c.id === prev)) sel.value = prev;
+    });
+}
+
+// --- Управление категориями ---
+window.showCategoriesManager = () => {
+    renderCategoriesList();
+    document.getElementById('categories-modal').style.display = 'flex';
+};
+window.closeCategoriesManager = () => {
+    document.getElementById('categories-modal').style.display = 'none';
+};
+window.switchCatTab = (type) => {
+    currentCatTab = type;
+    document.getElementById('tab-expense').classList.toggle('active', type === 'expense');
+    document.getElementById('tab-income').classList.toggle('active', type === 'income');
+    document.getElementById('categories-list-expense').style.display = type === 'expense' ? 'flex' : 'none';
+    document.getElementById('categories-list-income').style.display = type === 'income' ? 'flex' : 'none';
+};
+
+function renderCategoriesList() {
+    ['expense', 'income'].forEach(type => {
+        const list = document.getElementById(`categories-list-${type}`);
+        list.innerHTML = categories[type].map(c => `
+            <div class="category-item">
+                <span class="category-icon">${c.icon}</span>
+                <span class="category-name">${c.name}</span>
+                <span class="category-color-dot" style="background:${c.color}"></span>
+                <button class="cat-remove" onclick="removeCategory('${type}','${c.id}')" title="Удалить">×</button>
+            </div>
+        `).join('');
+    });
+}
+
+window.addCategoryFromForm = () => {
+    const icon = document.getElementById('cat-new-icon').value.trim() || '📦';
+    const name = document.getElementById('cat-new-name').value.trim();
+    const color = document.getElementById('cat-new-color').value;
+    if (!name) { alert('Введи название'); return; }
+    categories[currentCatTab].push({ id: generateId(), name, icon, color });
+    document.getElementById('cat-new-icon').value = '';
+    document.getElementById('cat-new-name').value = '';
+    saveData();
+    renderCategoriesList();
+    fillCategorySelects();
+};
+
+window.removeCategory = (type, id) => {
+    const cat = categories[type].find(c => c.id === id);
+    if (!cat) return;
+    const used = transactions.filter(tx => tx.categoryId === id).length;
+    const msg = used > 0
+        ? `Удалить категорию «${cat.name}»? Она используется в ${used} операциях — они перейдут в «Другое».`
+        : `Удалить категорию «${cat.name}»?`;
+    if (!confirm(msg)) return;
+
+    categories[type] = categories[type].filter(c => c.id !== id);
+    // Переназначаем операции на «Другое»
+    const fallback = categories[type].find(c => c.name === 'Другое') || categories[type][0];
+    if (fallback) {
+        transactions.forEach(tx => {
+            if (tx.categoryId === id) tx.categoryId = fallback.id;
+        });
+    }
+    saveData();
+    renderCategoriesList();
+    fillCategorySelects();
+    render();
+};
 
 // --- Рендер ---
 function render() {
@@ -195,11 +285,11 @@ function renderReserves() {
 
         let warnBlock = '';
         if (expired) {
-            warnBlock = `<div class="reserve-warn">⚠️ Период резерва истёк. Закрой его, чтобы вернуть остаток на баланс.</div>`;
+            warnBlock = `<div class="reserve-warn">⚠️ Период резерва истёк.</div>`;
         } else if (over) {
-            warnBlock = `<div class="reserve-warn">⚠️ Ты превысил сумму резерва! Потрачено ${formatMoney(r.spent)} из ${formatMoney(r.limit)}</div>`;
+            warnBlock = `<div class="reserve-warn">⚠️ Ты превысил сумму резерва!</div>`;
         } else {
-            warnBlock = `<div class="reserve-ok">✅ В резерве осталось ${formatMoney(remaining)}</div>`;
+            warnBlock = `<div class="reserve-ok">✅ Осталось ${formatMoney(remaining)}</div>`;
         }
 
         return `
@@ -213,9 +303,7 @@ function renderReserves() {
                     <span>Зарезервировано: <strong>${formatMoney(r.limit)}</strong></span>
                     <span>Потрачено: <strong>${formatMoney(r.spent)}</strong></span>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div>
-                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill ${over ? 'over' : ''}" style="width: ${progress}%"></div></div>
                 ${warnBlock}
                 <div class="reserve-actions">
                     <button class="btn-spend-reserve" onclick="spendFromReserve('${r.id}')">💸 Потратить</button>
@@ -237,11 +325,13 @@ window.spendFromReserve = (id) => {
     const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) return;
     const desc = prompt('На что потратили?', 'Покупка') || 'Покупка';
+    const fallback = categories.expense.find(c => c.name === 'Другое') || categories.expense[0];
 
     r.spent += amount;
     transactions.push({
         id: generateId(), type: 'expense', amount,
-        desc: `${r.name}: ${desc}`, date: new Date().toISOString()
+        desc: `${r.name}: ${desc}`, date: new Date().toISOString(),
+        categoryId: fallback ? fallback.id : null
     });
     saveData(); render();
 };
@@ -254,13 +344,8 @@ window.refillReserve = (id) => {
     const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) return;
     if (amount > balance) { alert('Недостаточно свободных денег!'); return; }
-
-    balance -= amount;
-    r.limit += amount;
-    transactions.push({
-        id: generateId(), type: 'transfer', amount,
-        desc: `Пополнение резерва «${r.name}»`, date: new Date().toISOString()
-    });
+    balance -= amount; r.limit += amount;
+    transactions.push({ id: generateId(), type: 'transfer', amount, desc: `Пополнение резерва «${r.name}»`, date: new Date().toISOString() });
     saveData(); render();
 };
 
@@ -277,7 +362,6 @@ window.editReserve = (id) => {
     if (newFrom === null) return;
     const newTo = prompt('Дата конца (ГГГГ-ММ-ДД):', r.dateTo);
     if (newTo === null) return;
-
     const diff = newLimit - r.limit;
     if (diff > 0) {
         if (diff > balance) { alert(`Недостаточно денег! Нужно ещё ${formatMoney(diff - balance)}`); return; }
@@ -287,7 +371,6 @@ window.editReserve = (id) => {
         balance += Math.abs(diff);
         transactions.push({ id: generateId(), type: 'transfer', amount: Math.abs(diff), desc: `Уменьшение резерва «${newName}»`, date: new Date().toISOString() });
     }
-
     r.name = newName; r.limit = newLimit; r.dateFrom = newFrom; r.dateTo = newTo;
     saveData(); render();
 };
@@ -398,8 +481,13 @@ window.spendFromEnvelope = (id) => {
     const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) return;
     const desc = prompt('На что потратили?', 'Покупка') || 'Покупка';
+    const fallback = categories.expense.find(c => c.name === 'Другое') || categories.expense[0];
     env.spent += amount;
-    transactions.push({ id: generateId(), type: 'expense', amount, desc: `${env.name}: ${desc}`, date: new Date().toISOString() });
+    transactions.push({
+        id: generateId(), type: 'expense', amount,
+        desc: `${env.name}: ${desc}`, date: new Date().toISOString(),
+        categoryId: fallback ? fallback.id : null
+    });
     saveData(); render();
 };
 
@@ -462,10 +550,12 @@ function renderTransactions() {
     const sorted = [...transactions].reverse();
     container.innerHTML = sorted.map(tx => {
         const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '-' : '');
+        const cat = tx.categoryId ? getCategoryById(tx.type, tx.categoryId) : null;
+        const catTag = cat ? `<span class="tx-category-tag" style="background:${cat.color}">${cat.icon} ${cat.name}</span>` : '';
         return `
             <div class="transaction-item ${tx.type}">
                 <div class="tx-info">
-                    <span class="tx-desc">${tx.desc}</span>
+                    <span class="tx-desc">${catTag}${tx.desc}</span>
                     <span class="tx-date">${formatDate(tx.date)}</span>
                 </div>
                 <div class="tx-right">
@@ -488,6 +578,7 @@ window.deleteTransaction = (id) => {
 // --- Инициализация ---
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
+    fillCategorySelects();
     render();
     checkBackupReminder();
 
@@ -503,21 +594,25 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const amount = parseFloat(document.getElementById('income-amount').value);
         const desc = document.getElementById('income-desc').value.trim();
+        const categoryId = document.getElementById('income-category').value;
         if (isNaN(amount) || amount <= 0 || !desc) return;
         balance += amount;
-        transactions.push({ id: generateId(), type: 'income', amount, desc, date: new Date().toISOString() });
+        transactions.push({ id: generateId(), type: 'income', amount, desc, date: new Date().toISOString(), categoryId });
         saveData(); render(); e.target.reset();
+        fillCategorySelects();
     });
 
     document.getElementById('expense-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const amount = parseFloat(document.getElementById('expense-amount').value);
         const desc = document.getElementById('expense-desc').value.trim();
+        const categoryId = document.getElementById('expense-category').value;
         if (isNaN(amount) || amount <= 0 || !desc) return;
         if (amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
         balance -= amount;
-        transactions.push({ id: generateId(), type: 'expense', amount, desc, date: new Date().toISOString() });
+        transactions.push({ id: generateId(), type: 'expense', amount, desc, date: new Date().toISOString(), categoryId });
         saveData(); render(); e.target.reset();
+        fillCategorySelects();
     });
 
     document.getElementById('reserve-form').addEventListener('submit', (e) => {
