@@ -17,7 +17,8 @@
                 </div>
                 <div class="balance-sub">
                     <span id="in-envelopes">В конвертах: 0 ₽</span><br>
-                    <span id="in-goals">В целях: 0 ₽</span>
+                    <span id="in-goals">В целях: 0 ₽</span><br>
+                    <span id="in-reserves">В резервах: 0 ₽</span>
                 </div>
             </div>
         </header>
@@ -43,6 +44,25 @@
             </div>
         </section>
 
+        <!-- ОБЯЗАТЕЛЬНЫЕ РЕЗЕРВЫ -->
+        <section class="section-block">
+            <h2>🔒 Обязательные резервы</h2>
+            <div class="form-card">
+                <form id="reserve-form" class="reserve-form-grid">
+                    <input type="text" id="reserve-name" placeholder="На что (на сиги, на проезд)" required>
+                    <input type="number" id="reserve-amount" placeholder="Сумма" required min="1" step="0.01">
+                    <label class="date-label">С:
+                        <input type="date" id="reserve-date-from" required>
+                    </label>
+                    <label class="date-label">По:
+                        <input type="date" id="reserve-date-to" required>
+                    </label>
+                    <button type="submit">Создать резерв</button>
+                </form>
+            </div>
+            <div id="reserves-list"></div>
+        </section>
+
         <!-- ЦЕЛИ -->
         <section class="section-block">
             <h2>🎯 Цели (накопления)</h2>
@@ -60,28 +80,16 @@
         <section class="section-block">
             <h2>📁 Выделенная сумма на период</h2>
             <div class="form-card">
-                <form id="envelope-form">
-                    <div class="env-main-fields">
-                        <input type="text" id="env-name" placeholder="Название (Продукты)" required>
-                        <input type="number" id="env-limit" placeholder="Сумма на период" required min="1" step="0.01">
-                        <label class="date-label">С:
-                            <input type="date" id="env-date-from" required>
-                        </label>
-                        <label class="date-label">По:
-                            <input type="date" id="env-date-to" required>
-                        </label>
-                    </div>
-
-                    <!-- ОТДЕЛЬНАЯ ПЛАШКА ОБЯЗАТЕЛЬНОГО ОСТАТКА -->
-                    <div class="min-keep-block">
-                        <div class="min-keep-title">🔒 Обязательный остаток</div>
-                        <div class="min-keep-fields">
-                            <input type="number" id="env-min-amount" placeholder="Сумма (сколько должно остаться)" min="0" step="0.01" value="0">
-                            <input type="text" id="env-min-reason" placeholder="Причина (на проезд, на сиги)">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-create-env">Создать конверт</button>
+                <form id="envelope-form" class="envelope-form-grid">
+                    <input type="text" id="env-name" placeholder="Название (Продукты)" required>
+                    <input type="number" id="env-limit" placeholder="Сумма на период" required min="1" step="0.01">
+                    <label class="date-label">С:
+                        <input type="date" id="env-date-from" required>
+                    </label>
+                    <label class="date-label">По:
+                        <input type="date" id="env-date-to" required>
+                    </label>
+                    <button type="submit">Создать конверт</button>
                 </form>
             </div>
             <div id="envelopes-list"></div>
