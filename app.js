@@ -1231,3 +1231,207 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRecurrings();
     renderDebts();
 });
+// ===== ЭТАП 5: УЛУЧШЕНИЯ ЦЕЛЕЙ =====
+
+const GOAL_PRIORITY_LABEL = {
+    high: { text: '🔥 Важная', cls: 'high' },
+    normal: { text: '⭐ Обычная', cls: 'normal' },
+    dream: { text: '💭 Мечта', cls: 'dream' }
+};
+
+// Сколько осталось дней до дедлайна
+function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const now = new Date(); now.setHours(0,0,0,0);
+    const target = new Date(dateStr); target.setHours(0,0,0,0);
+    return Math.ceil((target - now) / (24 * 60 * 60 * 1000));
+}
+
+// Прогноз: когда достигну цель при текущем темпе
+function forecastGoalDate(g) {
+    // Используем дату создания цели и текущий накопленный процент
+    if (!g.createdAt || g.saved <= 0) return null;
+    const daysPassed = Math.max(1, (Date.now() - new Date(g.createdAt).getTime()) / (24 * 60 * 60 * 1000));
+    const ratePerDay = g.saved / daysPassed;
+    if (ratePerDay <= 0) return null;
+    const daysLeft = (g.target - g.saved) / ratePerDay;
+    if (!isFinite(daysLeft) || daysLeft <= 0) return null;
+    const forecastDate = new Date(Date.now() + daysLeft * 24 * 60 * 60 * 1000);
+    return forecastDate;
+}
+
+function renderGoalsImproved() {
+    const container = document.getElementById('goals-list');
+    if (!container) return;
+
+    // Сортировка: high > normal > dream, внутри — по дате создания
+    const priorityOrder = { high: 0, normal: 1, dream: 2 };
+    const active = goals.filter(g => g.saved < g.target);
+    const achieved = goals.filter(g => g.saved >= g.target);
+
+    active.sort((a, b) => {
+        const pa = priorityOrder[a.priority || 'normal'] ?? 1;
+        const pb = priorityOrder[b.priority || 'normal'] ?? 1;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+    });
+
+    if (active.length === 0) {
+        container.innerHTML = '<p class="empty-msg">Нет активных целей</p>';
+    } else {
+        container.innerHTML = active.map(g => {
+            const remaining = g.target - g.saved;
+            const progress = Math.min((g.saved / g.target) * 100, 100);
+            const prio = GOAL_PRIORITY_LABEL[g.priority || 'normal'];
+            const icon = g.icon || '🎯';
+
+            // Дедлайн
+            let deadlineInfo = '';
+            if (g.deadline) {
+                const days = daysUntil(g.deadline);
+                const monthlyNeed = days > 0 ? (remaining / (days / 30)) : remaining;
+                if (days < 0) {
+                    deadlineInfo = `<div class="goal-deadline-info">Дедлайн: <span class="overdue">просрочен на ${Math.abs(days)} дн.</span></div>`;
+                } else if (days === 0) {
+                    deadlineInfo = `<div class="goal-deadline-info">Дедлайн: <span class="warn">сегодня!</span></div>`;
+                } else {
+                    const cls = days < 30 ? 'warn' : 'ok';
+                    deadlineInfo = `<div class="goal-deadline-info">До дедлайна: <span class="${cls}">${days} дн.</span> · нужно откладывать <strong>${formatMoney(monthlyNeed)}/мес</strong></div>`;
+                }
+            }
+
+            // Прогноз
+            let forecastInfo = '';
+            const fd = forecastGoalDate(g);
+            if (fd && g.deadline) {
+                const fdDays = daysUntil(fd.toISOString().split('T')[0]);
+                const dlDays = daysUntil(g.deadline);
+                if (fdDays !== null && dlDays !== null) {
+                    if (fdDays <= dlDays) {
+                        forecastInfo = `<div class="goal-stats">📈 При текущем темпе достигнешь <strong>${fd.toLocaleDateString('ru-RU')}</strong> — успеваешь!</div>`;
+                    } else {
+                        forecastInfo = `<div class="goal-stats">📉 При текущем темпе достигнешь <strong>${fd.toLocaleDateString('ru-RU')}</strong> — можешь не успеть</div>`;
+                    }
+                }
+            } else if (fd) {
+                forecastInfo = `<div class="goal-stats">📈 При текущем темпе достигнешь <strong>${fd.toLocaleDateString('ru-RU')}</strong></div>`;
+            }
+
+            return `
+                <div class="goal priority-${g.priority || 'normal'}">
+                    <span class="goal-priority-badge ${prio.cls}">${prio.text}</span>
+                    <div class="goal-header">
+                        <span class="goal-name"><span class="goal-icon">${icon}</span>${g.name}</span>
+                        <span class="goal-sum">${formatMoney(g.saved)} / ${formatMoney(g.target)}</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${progress}%"></div></div>
+                    <div class="goal-stats">Осталось накопить: <strong>${formatMoney(remaining)}</strong></div>
+                    ${deadlineInfo}
+                    ${forecastInfo}
+                    <div class="goal-actions">
+                        <input type="number" id="dep-${g.id}" placeholder="Сумма" min="1" step="0.01">
+                        <button class="btn-deposit" onclick="depositToGoal('${g.id}')">Отложить</button>
+                        <button class="btn-edit-goal" onclick="editGoal('${g.id}')">✏️</button>
+                        <button class="btn-achieve" onclick="markAchieved('${g.id}')">✅ Достигнуто</button>
+                        <button class="btn-close" onclick="closeGoal('${g.id}')">Забрать</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Достигнутые
+    const achContainer = document.getElementById('achieved-list');
+    if (achContainer) {
+        if (achieved.length === 0) {
+            achContainer.innerHTML = '<p class="empty-msg">Пока ничего не достигнуто</p>';
+        } else {
+            achContainer.innerHTML = achieved.map(g => `
+                <div class="achieved-item">
+                    <div class="achieved-info">
+                        <span class="achieved-icon">${g.icon || '🎯'}</span>
+                        <div>
+                            <div class="achieved-name">${g.name}</div>
+                            <div class="achieved-meta">${g.achievedAt ? 'Достигнуто ' + new Date(g.achievedAt).toLocaleDateString('ru-RU') : ''}</div>
+                        </div>
+                    </div>
+                    <span class="achieved-sum">${formatMoney(g.saved)}</span>
+                    <button class="btn-close" onclick="closeGoal('${g.id}')" style="padding:8px 12px;font-size:0.8rem;">Забрать</button>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+window.editGoal = (id) => {
+    const g = goals.find(x => x.id === id);
+    if (!g) return;
+    const newIcon = prompt('Иконка (эмодзи):', g.icon || '🎯');
+    if (newIcon === null) return;
+    const newName = prompt('Название:', g.name);
+    if (newName === null) return;
+    const newTarget = prompt('Нужная сумма:', g.target);
+    if (newTarget === null) return;
+    const newDeadline = prompt('Дедлайн (ГГГГ-ММ-ДД, пусто = убрать):', g.deadline || '');
+    if (newDeadline === null) return;
+    const newPriority = prompt('Приоритет (high / normal / dream):', g.priority || 'normal');
+    if (newPriority === null) return;
+
+    const targetNum = parseFloat(newTarget);
+    if (isNaN(targetNum) || targetNum <= 0) { alert('Неверная сумма'); return; }
+
+    g.icon = newIcon || '🎯';
+    g.name = newName || g.name;
+    g.target = targetNum;
+    g.deadline = newDeadline || null;
+    g.priority = ['high', 'normal', 'dream'].includes(newPriority) ? newPriority : 'normal';
+    saveData(); render();
+};
+
+window.markAchieved = (id) => {
+    const g = goals.find(x => x.id === id);
+    if (!g) return;
+    if (g.saved < g.target) {
+        if (!confirm(`Цель не накоплена полностью (${formatMoney(g.saved)} из ${formatMoney(g.target)}). Отметить как достигнутую?`)) return;
+    }
+    g.achievedAt = new Date().toISOString();
+    saveData(); render();
+    alert(`🎉 Поздравляю с достижением цели «${g.name}»!`);
+};
+
+// Обновляем render, чтобы использовал улучшенную отрисовку целей
+const _renderBeforeStage5 = render;
+render = function() {
+    _renderBeforeStage5();
+    if (document.getElementById('goals-list')) {
+        renderGoalsImproved();
+    }
+};
+
+// Обновляем создание цели (добавляем иконку, дедлайн, приоритет)
+document.addEventListener('DOMContentLoaded', () => {
+    const goalForm = document.getElementById('goal-form');
+    if (!goalForm) return;
+
+    // Удаляем старый обработчик, заменяя форму
+    const newForm = goalForm.cloneNode(true);
+    goalForm.parentNode.replaceChild(newForm, goalForm);
+
+    newForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const icon = document.getElementById('goal-icon').value.trim() || '🎯';
+        const name = document.getElementById('goal-name').value.trim();
+        const target = parseFloat(document.getElementById('goal-target').value);
+        const deadline = document.getElementById('goal-deadline').value || null;
+        const priority = document.getElementById('goal-priority').value || 'normal';
+        if (!name || isNaN(target) || target <= 0) return;
+        goals.push({
+            id: generateId(), name, target, saved: 0,
+            icon, deadline, priority,
+            createdAt: new Date().toISOString()
+        });
+        saveData(); render();
+        newForm.reset();
+        document.getElementById('goal-icon').value = '';
+    });
+});
