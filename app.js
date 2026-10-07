@@ -1955,3 +1955,305 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTransactionsFiltered();
     renderQuickButtons();
 });
+// ===== ЭТАП 8: ДОСТИЖЕНИЯ, STREAK, 50/30/20, КАЛЕНДАРЬ =====
+
+// === STREAK ===
+function calculateStreak() {
+    if (transactions.length === 0) return 0;
+    const days = new Set(
+        transactions.map(t => new Date(t.date).toISOString().split('T')[0])
+    );
+    const sortedDays = [...days].sort().reverse();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // Streak идёт, если сегодня или вчера была операция
+    if (sortedDays[0] !== todayStr && sortedDays[0] !== yesterdayStr) return 0;
+
+    let streak = 1;
+    let prev = new Date(sortedDays[0]);
+    for (let i = 1; i < sortedDays.length; i++) {
+        const curr = new Date(sortedDays[i]);
+        const diff = (prev - curr) / (24 * 60 * 60 * 1000);
+        if (diff === 1) {
+            streak++;
+            prev = curr;
+        } else break;
+    }
+    return streak;
+}
+
+function renderStreak() {
+    const card = document.getElementById('streak-card');
+    if (!card) return;
+    const streak = calculateStreak();
+    const emojis = ['💤', '🔥', '🔥', '⚡', '⚡', '💪', '💪', '🏆', '🏆', '👑'];
+    const emoji = emojis[Math.min(Math.floor(streak / 5), emojis.length - 1)];
+    const desc = streak === 0
+        ? 'Внеси операцию, чтобы начать серию'
+        : streak < 3 ? 'Хорошее начало!'
+        : streak < 7 ? 'Отличный темп!'
+        : streak < 30 ? 'Ты на огне!'
+        : 'Легенда учёта!';
+
+    card.className = 'streak-card' + (streak === 0 ? ' streak-zero' : '');
+    card.innerHTML = `
+        <div class="streak-label">🔥 Streak — дней подряд</div>
+        <div class="streak-value">${emoji} ${streak}</div>
+        <div class="streak-desc">${desc}</div>
+    `;
+}
+
+// === ДОСТИЖЕНИЯ ===
+const ACHIEVEMENTS = [
+    { id: 'first_tx', icon: '🎬', name: 'Первый шаг', check: () => transactions.length >= 1 },
+    { id: 'first_income', icon: '💵', name: 'Первый доход', check: () => transactions.some(t => t.type === 'income') },
+    { id: 'first_goal', icon: '🎯', name: 'Первая цель', check: () => goals.length >= 1 || (window._archivedGoals && window._archivedGoals.length >= 1) },
+    { id: 'first_achieved', icon: '✅', name: 'Цель достигнута', check: () => goals.some(g => g.saved >= g.target) },
+    { id: 'streak_7', icon: '🔥', name: '7 дней подряд', check: () => calculateStreak() >= 7 },
+    { id: 'streak_30', icon: '💎', name: '30 дней подряд', check: () => calculateStreak() >= 30 },
+    { id: 'tx_100', icon: '📚', name: '100 операций', check: () => transactions.length >= 100 },
+    { id: 'tx_500', icon: '📖', name: '500 операций', check: () => transactions.length >= 500 },
+    { id: 'balance_10k', icon: '💰', name: '10 000 на балансе', check: () => balance >= 10000 },
+    { id: 'balance_100k', icon: '💎', name: '100 000 на балансе', check: () => balance >= 100000 },
+    { id: 'budget_set', icon: '📋', name: 'Бюджет установлен', check: () => getBudget() > 0 },
+    { id: 'no_overbudget', icon: '🛡️', name: 'Месяц без перерасхода', check: () => {
+        const budget = getBudget();
+        if (budget <= 0) return false;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const spent = transactions.filter(t => t.type === 'expense' && new Date(t.date) >= monthStart).reduce((s, t) => s + t.amount, 0);
+        return spent > 0 && spent <= budget;
+    }},
+    { id: 'categories_5', icon: '🏷️', name: '5 своих категорий', check: () => (categories.expense.length + categories.income.length) >= 14 },
+    { id: 'all_types', icon: '🎨', name: 'Все типы операций', check: () => {
+        const types = new Set(transactions.map(t => t.type));
+        return types.has('income') && types.has('expense') && types.has('transfer');
+    }}
+];
+
+function renderAchievements() {
+    const container = document.getElementById('achievements-list');
+    if (!container) return;
+    container.innerHTML = ACHIEVEMENTS.map(a => {
+        const unlocked = a.check();
+        return `<span class="achievement ${unlocked ? '' : 'locked'}" title="${a.name}">${a.icon} ${a.name}</span>`;
+    }).join('');
+}
+
+// === ПРАВИЛО 50/30/20 ===
+function renderRule503020() {
+    const card = document.getElementById('rule-card');
+    if (!card) return;
+
+    // Считаем доход за текущий месяц
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthTx = transactions.filter(t => new Date(t.date) >= monthStart);
+
+    const income = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+    if (income <= 0) {
+        card.innerHTML = `
+            <div class="rule-title">📐 Правило 50/30/20 (этот месяц)</div>
+            <p style="color:#999;font-size:0.85rem;">Недостаточно данных. Добавь доход за этот месяц, чтобы увидеть анализ.</p>
+        `;
+        return;
+    }
+
+    // Классифицируем расходы:
+    // "нужное" — категории с названиями: Еда, Транспорт, Здоровье, Жильё, Связь, Продукты
+    // "желания" — Развлечения, Сиги, Одежда, Кафе
+    // "сбережения" — то, что отложено в цели, конверты, резервы
+    const needsCats = ['Еда', 'Транспорт', 'Здоровье', 'Жильё', 'Связь', 'Продукты', 'Аптека', 'Коммуналка'];
+    const wantsCats = ['Развлечения', 'Сиги', 'Одежда', 'Кафе', 'Игры', 'Подписки'];
+
+    let needsSum = 0, wantsSum = 0;
+    monthTx.filter(t => t.type === 'expense').forEach(t => {
+        const cat = t.categoryId ? getCategoryById('expense', t.categoryId) : null;
+        const catName = cat ? cat.name : '';
+        if (needsCats.includes(catName)) needsSum += t.amount;
+        else if (wantsCats.includes(catName)) wantsSum += t.amount;
+        else needsSum += t.amount; // по умолчанию относим к "нужному"
+    });
+
+    // Сбережения = то, что ушло в цели/конверты/резервы за месяц
+    const savingsSum = monthTx.filter(t => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
+
+    const needsPercent = (needsSum / income) * 100;
+    const wantsPercent = (wantsSum / income) * 100;
+    const savingsPercent = (savingsSum / income) * 100;
+
+    const needsOk = needsPercent <= 50;
+    const wantsOk = wantsPercent <= 30;
+    const savingsOk = savingsPercent >= 20;
+
+    const verdicts = [];
+    if (!needsOk) verdicts.push('«Нужное» больше 50% — попробуй урезать базовые расходы.');
+    if (!wantsOk) verdicts.push('«Желания» больше 30% — можно немного сэкономить на удовольствиях.');
+    if (!savingsOk) verdicts.push('Откладываешь меньше 20% — попробуй увеличить накопления.');
+
+    const verdictClass = verdicts.length === 0 ? 'ok' : 'warn';
+    const verdictText = verdicts.length === 0
+        ? '✅ Отлично! Ты соблюдаешь правило 50/30/20.'
+        : '⚠️ ' + verdicts.join(' ');
+
+    card.innerHTML = `
+        <div class="rule-title">📐 Правило 50/30/20 (этот месяц)</div>
+        <div class="rule-bars">
+            <div class="rule-bar-row">
+                <div class="rule-bar-label">🏠 Нужное: <strong>${formatMoney(needsSum)}</strong></div>
+                <div class="rule-bar-bg">
+                    <div class="rule-bar-fill needs ${needsOk ? '' : 'over'}" style="width: ${Math.min(needsPercent, 100)}%">
+                        ${needsPercent.toFixed(0)}%
+                    </div>
+                </div>
+                <div class="rule-target">/ 50%</div>
+            </div>
+            <div class="rule-bar-row">
+                <div class="rule-bar-label">🎮 Желания: <strong>${formatMoney(wantsSum)}</strong></div>
+                <div class="rule-bar-bg">
+                    <div class="rule-bar-fill wants ${wantsOk ? '' : 'over'}" style="width: ${Math.min(wantsPercent, 100)}%">
+                        ${wantsPercent.toFixed(0)}%
+                    </div>
+                </div>
+                <div class="rule-target">/ 30%</div>
+            </div>
+            <div class="rule-bar-row">
+                <div class="rule-bar-label">💰 Сбережения: <strong>${formatMoney(savingsSum)}</strong></div>
+                <div class="rule-bar-bg">
+                    <div class="rule-bar-fill savings ${savingsOk ? '' : 'over'}" style="width: ${Math.min(savingsPercent, 100)}%">
+                        ${savingsPercent.toFixed(0)}%
+                    </div>
+                </div>
+                <div class="rule-target">/ 20%</div>
+            </div>
+        </div>
+        <div class="rule-verdict ${verdictClass}">${verdictText}</div>
+    `;
+}
+
+// === КАЛЕНДАРЬ ТРАТ ===
+function renderCalendarHeatmap() {
+    const container = document.getElementById('calendar-heatmap');
+    if (!container) return;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // День недели первого дня (Пн=0, Вс=6)
+    let startWeekday = firstDay.getDay() - 1;
+    if (startWeekday < 0) startWeekday = 6;
+
+    // Считаем траты по дням
+    const spendByDay = {};
+    transactions.filter(t => t.type === 'expense').forEach(t => {
+        const d = new Date(t.date);
+        if (d.getFullYear() === year && d.getMonth() === month) {
+            const day = d.getDate();
+            spendByDay[day] = (spendByDay[day] || 0) + t.amount;
+        }
+    });
+
+    const maxSpend = Math.max(...Object.values(spendByDay), 1);
+
+    // Заголовки дней недели
+    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    let html = weekdays.map(d => `<div class="calendar-weekday">${d}</div>`).join('');
+
+    // Пустые клетки перед первым днём
+    for (let i = 0; i < startWeekday; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+
+    // Дни
+    for (let day = 1; day <= daysInMonth; day++) {
+        const spend = spendByDay[day] || 0;
+        const intensity = spend / maxSpend;
+        let bg = '#f0f0f0';
+        if (spend > 0) {
+            const alpha = 0.15 + intensity * 0.85;
+            bg = `rgba(231, 76, 60, ${alpha})`;
+        }
+        const isToday = day === now.getDate();
+        const amountStr = spend > 0 ? formatMoney(spend) : 'нет трат';
+        html += `
+            <div class="calendar-day" style="background:${bg}; ${isToday ? 'outline:2px solid #2c3e50;' : ''}">
+                <div class="cal-num">${day}</div>
+                ${spend > 0 ? `<div class="cal-amount">${Math.round(spend)}₽</div>` : ''}
+                <div class="cal-tooltip">${day} ${firstDay.toLocaleDateString('ru-RU', { month: 'long' })}: ${amountStr}</div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// === ТОП КАТЕГОРИЙ ЗА ВСЁ ВРЕМЯ ===
+function renderTopCategoriesAll() {
+    const container = document.getElementById('top-categories-all');
+    if (!container) return;
+
+    const byCat = {};
+    transactions.filter(t => t.type === 'expense').forEach(t => {
+        const cat = t.categoryId ? getCategoryById('expense', t.categoryId) : null;
+        const key = cat ? cat.id : 'none';
+        if (!byCat[key]) {
+            byCat[key] = {
+                name: cat ? `${cat.icon} ${cat.name}` : '📦 Без категории',
+                color: cat ? cat.color : '#95a5a6',
+                sum: 0
+            };
+        }
+        byCat[key].sum += t.amount;
+    });
+
+    const sorted = Object.values(byCat).sort((a, b) => b.sum - a.sum).slice(0, 10);
+
+    if (sorted.length === 0) {
+        container.innerHTML = '<p class="chart-empty">Нет данных</p>';
+        return;
+    }
+
+    const maxSum = sorted[0].sum;
+    container.innerHTML = sorted.map(c => `
+        <div class="top-cat-row">
+            <span class="top-cat-icon" style="color:${c.color}">${c.name.split(' ')[0]}</span>
+            <span class="top-cat-name">${c.name.split(' ').slice(1).join(' ')}</span>
+            <div style="flex:2; background:#eee; height:8px; border-radius:4px; overflow:hidden;">
+                <div style="width:${(c.sum / maxSum) * 100}%; height:100%; background:${c.color};"></div>
+            </div>
+            <span class="top-cat-amount">${formatMoney(c.sum)}</span>
+        </div>
+    `).join('');
+}
+
+// === ОБНОВЛЕНИЕ РЕНДЕРА ===
+const _renderBeforeStage8 = render;
+render = function() {
+    _renderBeforeStage8();
+    if (document.getElementById('streak-card')) {
+        renderStreak();
+        renderAchievements();
+        renderRule503020();
+        renderCalendarHeatmap();
+        renderTopCategoriesAll();
+    }
+};
+
+// Первый рендер
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        renderStreak();
+        renderAchievements();
+        renderRule503020();
+        renderCalendarHeatmap();
+        renderTopCategoriesAll();
+    }, 100);
+});
