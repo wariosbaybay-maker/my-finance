@@ -15,6 +15,22 @@
         <header>
             <h1>💰 Мой Кошелек</h1>
 
+                        <!-- БЛОК АВТОРИЗАЦИИ -->
+            <div id="auth-block" class="auth-block">
+                <div id="auth-logged-out" class="auth-form">
+                    <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+                    <input type="password" id="auth-password" placeholder="Пароль (мин. 6 символов)" autocomplete="current-password">
+                    <button type="button" onclick="authLogin()">Войти</button>
+                    <button type="button" onclick="authRegister()" class="auth-secondary">Регистрация</button>
+                    <button type="button" onclick="authResetPassword()" class="auth-link">Забыли пароль?</button>
+                </div>
+                <div id="auth-logged-in" class="auth-user" style="display:none">
+                    <span>👤 <span id="auth-user-email"></span></span>
+                    <button type="button" onclick="authLogout()" class="auth-secondary">Выйти</button>
+                </div>
+                <div id="auth-status" class="auth-status"></div>
+            </div>
+            
             <div class="toolbar">
                 <button type="button" class="tool-btn" id="theme-toggle" onclick="toggleTheme()">🌙 Тема</button>
                 <button type="button" class="tool-btn" onclick="downloadBackup()">💾 Скачать бэкап</button>
