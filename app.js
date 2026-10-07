@@ -388,4 +388,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Расход
-    document.getElementById('expense-form').addEventListener('submit', (e) =>
+    document.getElementById('expense-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amount = parseFloat(document.getElementById('expense-amount').value);
+        const desc = document.getElementById('expense-desc').value.trim();
+        if (isNaN(amount) || amount <= 0 || !desc) return;
+        if (amount > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+        balance -= amount;
+        transactions.push({ id: generateId(), type: 'expense', amount, desc, date: new Date().toISOString() });
+        saveData(); render();
+        e.target.reset();
+    });
+
+    // Цель
+    document.getElementById('goal-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('goal-name').value.trim();
+        const target = parseFloat(document.getElementById('goal-target').value);
+        if (!name || isNaN(target) || target <= 0) return;
+        goals.push({ id: generateId(), name, target, saved: 0 });
+        saveData(); render();
+        e.target.reset();
+    });
+
+    // Конверт
+    document.getElementById('envelope-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('env-name').value.trim();
+        const limit = parseFloat(document.getElementById('env-limit').value);
+        const dateFrom = document.getElementById('env-date-from').value;
+        const dateTo = document.getElementById('env-date-to').value;
+        const reserves = collectReservesFromForm();
+
+        if (!name || isNaN(limit) || limit <= 0) return;
+        if (!dateFrom || !dateTo) { alert('Укажи период'); return; }
+        if (new Date(dateTo) < new Date(dateFrom)) { alert('Дата конца раньше начала'); return; }
+        if (limit > balance) { alert(`Недостаточно денег! Свободно: ${formatMoney(balance)}`); return; }
+
+        const totalMin = sumReserves(reserves);
+        if (totalMin > limit) {
+            alert(`Сумма резервов (${formatMoney(totalMin)}) больше выделенной суммы (${formatMoney(limit)})!`);
+            return;
+        }
+
+        balance -= limit;
+        envelopes.push({
+            id: generateId(),
+            name, limit, spent: 0,
+            dateFrom, dateTo, reserves
+        });
+        transactions.push({
+            id: generateId(), type: 'transfer', amount: limit,
+            desc: `Создан конверт «${name}»`, date: new Date().toISOString()
+        });
+        saveData(); render();
+        e.target.reset();
+        document.getElementById('env-date-from').value = firstDay;
+        document.getElementById('env-date-to').value = lastDay;
+        document.getElementById('reserves-form-list').innerHTML = '';
+        addReserveRow();
+    });
+});
