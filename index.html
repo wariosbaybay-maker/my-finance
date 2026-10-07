@@ -166,7 +166,7 @@
             </div>
         </section>
 
-        <section class="section-block">
+                      <section class="section-block">
             <h2>🔒 Обязательные резервы</h2>
             <div class="form-card">
                 <form id="reserve-form" class="reserve-form-grid">
@@ -183,7 +183,7 @@
             </div>
             <div id="reserves-list"></div>
         </section>
-
+        
                <section class="section-block">
             <h2>🎯 Цели (накопления)</h2>
             <div class="form-card">
@@ -208,8 +208,14 @@
             <div id="achieved-list"></div>
         </section>
 
-        <section class="section-block">
+               <section class="section-block">
             <h2>📁 Выделенная сумма на период</h2>
+
+            <div class="templates-block" id="templates-block" style="display:none">
+                <div class="templates-title">⚡ Мои шаблоны (создать в один клик):</div>
+                <div id="templates-list" class="templates-list"></div>
+            </div>
+
             <div class="form-card">
                 <form id="envelope-form" class="envelope-form-grid">
                     <input type="text" id="env-name" placeholder="Название (Продукты)" required>
@@ -219,6 +225,12 @@
                     </label>
                     <label class="date-label">По:
                         <input type="date" id="env-date-to" required>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="env-autorenew"> Автопродление
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="env-save-template"> Сохранить как шаблон
                     </label>
                     <button type="submit">Создать конверт</button>
                 </form>
