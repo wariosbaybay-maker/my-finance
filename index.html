@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мои Финансы</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -38,7 +39,7 @@
                 <form id="income-form">
                     <input type="number" id="income-amount" placeholder="Сумма" required min="0.01" step="0.01">
                     <select id="income-category" required></select>
-                    <input type="text" id="income-desc" placeholder="Откуда (зарплата, подработка)" required>
+                    <input type="text" id="income-desc" placeholder="Откуда" required>
                     <button type="submit">Добавить доход</button>
                 </form>
             </div>
@@ -48,9 +49,63 @@
                 <form id="expense-form">
                     <input type="number" id="expense-amount" placeholder="Сумма" required min="0.01" step="0.01">
                     <select id="expense-category" required></select>
-                    <input type="text" id="expense-desc" placeholder="На что (сиги, еда)" required>
+                    <input type="text" id="expense-desc" placeholder="На что" required>
                     <button type="submit">Добавить расход</button>
                 </form>
+            </div>
+        </section>
+
+        <!-- АНАЛИТИКА -->
+        <section class="section-block">
+            <h2>📊 Аналитика</h2>
+
+            <div class="period-switcher">
+                <button class="period-btn" data-period="month" onclick="setPeriod('month')">Месяц</button>
+                <button class="period-btn" data-period="quarter" onclick="setPeriod('quarter')">3 месяца</button>
+                <button class="period-btn" data-period="year" onclick="setPeriod('year')">Год</button>
+                <button class="period-btn active" data-period="all" onclick="setPeriod('all')">Всё время</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Средний расход в день</span>
+                    <span class="stat-value" id="stat-avg-day">0 ₽</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Прогноз до конца месяца</span>
+                    <span class="stat-value" id="stat-forecast">0 ₽</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Доход за период</span>
+                    <span class="stat-value positive" id="stat-income">0 ₽</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Расход за период</span>
+                    <span class="stat-value negative" id="stat-expense">0 ₽</span>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Расходы по категориям</h3>
+                    <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
+                    <div id="pie-empty" class="chart-empty" style="display:none">Нет данных за период</div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Доходы и расходы по месяцам</h3>
+                    <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <h3>Динамика баланса</h3>
+                    <div class="chart-wrap"><canvas id="line-chart"></canvas></div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <h3>Топ-5 крупнейших трат за период</h3>
+                    <div id="top-expenses" class="top-list"></div>
+                </div>
             </div>
         </section>
 
@@ -76,7 +131,7 @@
             <h2>🎯 Цели (накопления)</h2>
             <div class="form-card">
                 <form id="goal-form" class="inline-form">
-                    <input type="text" id="goal-name" placeholder="На что копим (машина, телефон)" required>
+                    <input type="text" id="goal-name" placeholder="На что копим" required>
                     <input type="number" id="goal-target" placeholder="Нужная сумма" required min="1" step="0.01">
                     <button type="submit">Создать цель</button>
                 </form>
@@ -108,7 +163,6 @@
         </section>
     </div>
 
-    <!-- Модалка истории версий -->
     <div id="version-modal" class="modal-overlay" style="display:none">
         <div class="modal">
             <div class="modal-header">
@@ -119,7 +173,6 @@
         </div>
     </div>
 
-    <!-- Модалка категорий -->
     <div id="categories-modal" class="modal-overlay" style="display:none">
         <div class="modal">
             <div class="modal-header">
@@ -131,10 +184,8 @@
                     <button class="cat-tab active" onclick="switchCatTab('expense')" id="tab-expense">💸 Расходы</button>
                     <button class="cat-tab" onclick="switchCatTab('income')" id="tab-income">💵 Доходы</button>
                 </div>
-
                 <div id="categories-list-expense" class="categories-list"></div>
                 <div id="categories-list-income" class="categories-list" style="display:none"></div>
-
                 <div class="cat-add-block">
                     <h4>➕ Добавить категорию</h4>
                     <div class="cat-add-grid">
