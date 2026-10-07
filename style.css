@@ -654,3 +654,134 @@ body.dark .goal.priority-high, body.dark .goal.priority-normal, body.dark .goal.
 @media (max-width: 700px) {
     .history-controls { grid-template-columns: 1fr; }
 }
+/* ===== ЭТАП 8: ДОСТИЖЕНИЯ, STREAK, 50/30/20, КАЛЕНДАРЬ ===== */
+
+.streak-achievements-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.streak-card {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    color: white; border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.streak-card .streak-label { font-size: 0.85rem; opacity: 0.9; margin-bottom: 5px; }
+.streak-card .streak-value { font-size: 2.2rem; font-weight: bold; }
+.streak-card .streak-desc { font-size: 0.85rem; opacity: 0.9; margin-top: 5px; }
+.streak-card.streak-zero { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+
+.achievements-card {
+    background: white; border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.achievements-title { font-weight: bold; color: #2c3e50; margin-bottom: 12px; font-size: 1rem; }
+.achievements-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.achievement {
+    background: #f0e6ff; color: #6a4ca8; border-radius: 20px;
+    padding: 6px 12px; font-size: 0.8rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.achievement.locked {
+    background: #f0f0f0; color: #aaa;
+}
+.achievement.empty { background: transparent; color: #999; padding: 0; }
+
+.rule-503020-card {
+    background: white; border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+.rule-title { font-weight: bold; color: #2c3e50; margin-bottom: 15px; font-size: 1rem; }
+.rule-bars { display: flex; flex-direction: column; gap: 12px; }
+.rule-bar-row { display: flex; align-items: center; gap: 12px; }
+.rule-bar-label { min-width: 130px; font-size: 0.85rem; color: #666; }
+.rule-bar-label strong { color: #333; }
+.rule-bar-bg {
+    flex: 1; background: #eee; height: 22px; border-radius: 11px;
+    overflow: hidden; position: relative;
+}
+.rule-bar-fill {
+    height: 100%; transition: width 0.3s;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 8px; color: white; font-size: 0.75rem; font-weight: 600;
+}
+.rule-bar-fill.needs { background: #3498db; }
+.rule-bar-fill.wants { background: #e67e22; }
+.rule-bar-fill.savings { background: #27ae60; }
+.rule-bar-fill.over { background: #e74c3c; }
+.rule-target {
+    font-size: 0.8rem; color: #999; min-width: 60px; text-align: right;
+}
+.rule-verdict {
+    margin-top: 15px; padding: 12px 15px;
+    border-radius: 8px; font-size: 0.85rem; line-height: 1.5;
+}
+.rule-verdict.ok { background: #d4edda; color: #155724; }
+.rule-verdict.warn { background: #fff3cd; color: #856404; }
+
+.calendar-heatmap {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    max-width: 500px;
+}
+.calendar-day {
+    aspect-ratio: 1;
+    background: #f0f0f0;
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 0.7rem; color: #666;
+    position: relative; cursor: pointer;
+    transition: transform 0.15s;
+}
+.calendar-day:hover { transform: scale(1.1); z-index: 2; }
+.calendar-day.empty { background: transparent; cursor: default; }
+.calendar-day.empty:hover { transform: none; }
+.calendar-day .cal-num { font-weight: 600; }
+.calendar-day .cal-amount { font-size: 0.55rem; margin-top: 1px; }
+.calendar-day .cal-tooltip {
+    position: absolute; bottom: 105%; left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50; color: white;
+    padding: 6px 10px; border-radius: 6px;
+    font-size: 0.75rem; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    z-index: 10;
+}
+.calendar-day:hover .cal-tooltip { opacity: 1; }
+.calendar-weekday {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: #999; font-weight: 600;
+}
+
+.top-categories-all { display: flex; flex-direction: column; gap: 8px; }
+.top-cat-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: #f8f9fa; border-radius: 8px;
+}
+.top-cat-icon { font-size: 1.3rem; }
+.top-cat-name { flex: 1; font-weight: 500; }
+.top-cat-amount { font-weight: bold; color: #e74c3c; }
+
+body.dark .achievements-card,
+body.dark .rule-503020-card { background: #252a30; }
+body.dark .achievements-title,
+body.dark .rule-title { color: #f0f0f0; }
+body.dark .achievement { background: #2a2540; color: #c0a8e8; }
+body.dark .achievement.locked { background: #333940; color: #666; }
+body.dark .rule-bar-bg { background: #1a1d21; }
+body.dark .rule-bar-label, body.dark .rule-target { color: #aaa; }
+body.dark .rule-bar-label strong { color: #ddd; }
+body.dark .calendar-day { background: #1a1d21; color: #888; }
+body.dark .calendar-day .cal-num { color: #bbb; }
+body.dark .top-cat-row { background: #1a1d21; }
+body.dark .top-cat-name { color: #ddd; }
+
+@media (max-width: 700px) {
+    .streak-achievements-grid { grid-template-columns: 1fr; }
+    .rule-bar-label { min-width: 100px; font-size: 0.8rem; }
+}
