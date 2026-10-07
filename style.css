@@ -32,16 +32,35 @@ button:hover { background: #2980b9; }
 .inline-form input { flex: 1; min-width: 150px; }
 .inline-form button { flex: 0 0 auto; white-space: nowrap; }
 
-.envelope-form-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
-    gap: 10px;
-    align-items: center;
-}
+/* Форма конверта */
+.env-main-fields { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: center; }
 .date-label { display: flex; flex-direction: column; font-size: 0.75rem; color: #666; gap: 3px; }
 .date-label input { padding: 10px; }
-.envelope-form-grid button { padding: 12px 20px; white-space: nowrap; background: #9b59b6; }
-.envelope-form-grid button:hover { background: #8e44ad; }
+
+.reserves-block {
+    background: #faf6ff;
+    border: 1px dashed #b39ddb;
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 10px;
+}
+.reserves-title { font-size: 0.9rem; color: #6a4ca8; margin-bottom: 10px; font-weight: 600; }
+
+.reserve-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+.reserve-row input { padding: 10px; }
+.reserve-row .btn-remove-reserve {
+    background: #e74c3c; padding: 10px 14px; font-size: 0.9rem;
+}
+.reserve-row .btn-remove-reserve:hover { background: #c0392b; }
+
+.btn-add-reserve {
+    background: transparent; color: #6a4ca8; border: 1px dashed #6a4ca8;
+    padding: 8px 14px; font-size: 0.85rem; width: 100%;
+}
+.btn-add-reserve:hover { background: #f0e6ff; }
+
+.btn-create-env { background: #9b59b6; margin-top: 10px; }
+.btn-create-env:hover { background: #8e44ad; }
 
 #goals-list, #envelopes-list, #transactions-list { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; }
 
@@ -71,7 +90,7 @@ button:hover { background: #2980b9; }
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     border-left: 5px solid #9b59b6;
 }
-.envelope.expired { border-left-color: #e74c3c; opacity: 0.75; }
+.envelope.expired { border-left-color: #e74c3c; opacity: 0.85; }
 .envelope-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
 .envelope-name { font-weight: bold; font-size: 1.1rem; color: #2c3e50; }
 .envelope-remaining { font-size: 1.1rem; font-weight: bold; }
@@ -81,6 +100,28 @@ button:hover { background: #2980b9; }
 .envelope-period { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
 .envelope-stats { display: flex; gap: 15px; font-size: 0.85rem; color: #666; margin-bottom: 10px; flex-wrap: wrap; }
 .envelope-stats span strong { color: #333; }
+
+/* Плашки резервов внутри конверта */
+.reserves-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.reserve-chip {
+    background: #f0e6ff; color: #6a4ca8; border-radius: 20px;
+    padding: 6px 12px 6px 14px; font-size: 0.85rem;
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid #d5c2f0;
+}
+.reserve-chip .chip-amount { font-weight: bold; }
+.reserve-chip .chip-remove {
+    background: transparent; color: #6a4ca8; border: none;
+    font-size: 1rem; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+.reserve-chip .chip-remove:hover { color: #e74c3c; }
+
+.btn-add-reserve-inline {
+    background: transparent; color: #6a4ca8; border: 1px dashed #6a4ca8;
+    border-radius: 20px; padding: 6px 12px; font-size: 0.85rem;
+}
+.btn-add-reserve-inline:hover { background: #f0e6ff; }
+
 .envelope-min-warn { background: #fff3cd; color: #856404; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 10px; }
 .envelope-min-ok { background: #d4edda; color: #155724; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 10px; }
 
@@ -117,7 +158,7 @@ button:hover { background: #2980b9; }
 
 @media (max-width: 700px) {
     .input-forms { grid-template-columns: 1fr; }
-    .envelope-form-grid { grid-template-columns: 1fr 1fr; }
-    .envelope-form-grid button { grid-column: span 2; }
+    .env-main-fields { grid-template-columns: 1fr 1fr; }
+    .reserve-row { grid-template-columns: 1fr 1fr auto; }
     .inline-form { flex-direction: column; }
 }
