@@ -374,3 +374,76 @@ button:hover { background: #2980b9; }
     .recurring-form-grid button,
     .debt-form-grid button { grid-column: span 2; }
 }
+/* ===== ЭТАП 5: УЛУЧШЕНИЯ ЦЕЛЕЙ ===== */
+.goal-form-new {
+    display: grid;
+    grid-template-columns: 60px 2fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+}
+.goal-icon-input {
+    text-align: center; font-size: 1.3rem; padding: 10px 5px;
+}
+.goal-form-new button { background: #f39c12; white-space: nowrap; }
+.goal-form-new button:hover { background: #d68910; }
+
+.goal {
+    background: white; border-radius: 12px; padding: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-left: 5px solid #f39c12;
+    position: relative;
+}
+.goal.priority-high { border-left-color: #e74c3c; }
+.goal.priority-normal { border-left-color: #f39c12; }
+.goal.priority-dream { border-left-color: #9b59b6; }
+
+.goal-priority-badge {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 0.7rem; padding: 3px 8px; border-radius: 10px;
+    background: #f8f9fa; color: #666; font-weight: 600;
+}
+.goal-priority-badge.high { background: #ffe5e5; color: #c0392b; }
+.goal-priority-badge.dream { background: #f0e6ff; color: #6a4ca8; }
+
+.goal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; padding-right: 90px; }
+.goal-name { font-weight: bold; font-size: 1.1rem; color: #2c3e50; }
+.goal-icon { font-size: 1.5rem; margin-right: 6px; }
+.goal-sum { font-size: 1.05rem; font-weight: bold; color: #f39c12; }
+.goal-stats { font-size: 0.85rem; color: #666; margin-bottom: 10px; line-height: 1.5; }
+.goal-deadline-info { font-size: 0.85rem; color: #666; margin-bottom: 8px; line-height: 1.5; }
+.goal-deadline-info .warn { color: #f39c12; font-weight: 600; }
+.goal-deadline-info .overdue { color: #e74c3c; font-weight: 600; }
+.goal-deadline-info .ok { color: #27ae60; font-weight: 600; }
+
+.goal-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.goal-actions input { flex: 1; min-width: 100px; max-width: 160px; padding: 8px; }
+.goal-actions button { padding: 8px 12px; font-size: 0.85rem; }
+.btn-deposit { background: #27ae60; }
+.btn-deposit:hover { background: #219a52; }
+.btn-edit-goal { background: #f39c12; }
+.btn-edit-goal:hover { background: #d68910; }
+.btn-achieve { background: #16a085; }
+.btn-achieve:hover { background: #12876f; }
+.btn-close { background: #95a5a6; }
+.btn-close:hover { background: #7f8c8d; }
+
+/* Достигнутые цели */
+#achieved-list {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 15px;
+}
+.achieved-item {
+    background: #f0f9f0; border-radius: 12px; padding: 14px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-left: 5px solid #27ae60; gap: 10px; flex-wrap: wrap;
+}
+.achieved-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+.achieved-icon { font-size: 1.5rem; }
+.achieved-name { font-weight: bold; color: #2c3e50; }
+.achieved-meta { font-size: 0.8rem; color: #888; }
+.achieved-sum { font-weight: bold; color: #27ae60; font-size: 1.05rem; }
+
+@media (max-width: 800px) {
+    .goal-form-new { grid-template-columns: 1fr 1fr; }
+    .goal-form-new button { grid-column: span 2; }
+    .goal-header { padding-right: 0; }
+}
