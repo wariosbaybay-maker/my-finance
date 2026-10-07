@@ -116,9 +116,21 @@
             <div id="debts-list"></div>
         </section>
 
-        <!-- АНАЛИТИКА -->
+               <!-- АНАЛИТИКА -->
         <section class="section-block">
             <h2>📊 Аналитика</h2>
+
+            <!-- ДОСТИЖЕНИЯ И STREAK -->
+            <div class="streak-achievements-grid">
+                <div class="streak-card" id="streak-card"></div>
+                <div class="achievements-card">
+                    <div class="achievements-title">🏆 Достижения</div>
+                    <div id="achievements-list" class="achievements-list"></div>
+                </div>
+            </div>
+
+            <!-- ПРАВИЛО 50/30/20 -->
+            <div class="rule-503020-card" id="rule-card"></div>
 
             <div class="period-switcher">
                 <button class="period-btn" data-period="month" onclick="setPeriod('month')">Месяц</button>
@@ -166,6 +178,16 @@
                 <div class="chart-card full-width">
                     <h3>Топ-5 крупнейших трат за период</h3>
                     <div id="top-expenses" class="top-list"></div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <h3>📅 Календарь трат (текущий месяц)</h3>
+                    <div id="calendar-heatmap" class="calendar-heatmap"></div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <h3>📈 Топ категорий за всё время</h3>
+                    <div id="top-categories-all" class="top-categories-all"></div>
                 </div>
             </div>
         </section>
