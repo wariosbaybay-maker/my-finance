@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мои Финансы</title>
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -13,6 +16,7 @@
             <h1>💰 Мой Кошелек</h1>
 
             <div class="toolbar">
+                <button type="button" class="tool-btn" id="theme-toggle" onclick="toggleTheme()">🌙 Тема</button>
                 <button type="button" class="tool-btn" onclick="downloadBackup()">💾 Скачать бэкап</button>
                 <button type="button" class="tool-btn" onclick="document.getElementById('upload-input').click()">📂 Загрузить бэкап</button>
                 <button type="button" class="tool-btn" onclick="showVersionHistory()">🕐 История версий</button>
@@ -55,7 +59,7 @@
             </div>
         </section>
 
-                <!-- БЮДЖЕТ НА МЕСЯЦ -->
+        <!-- БЮДЖЕТ НА МЕСЯЦ -->
         <section class="section-block">
             <h2>💼 Бюджет на месяц</h2>
             <div class="form-card">
@@ -166,7 +170,8 @@
             </div>
         </section>
 
-                      <section class="section-block">
+        <!-- ОБЯЗАТЕЛЬНЫЕ РЕЗЕРВЫ -->
+        <section class="section-block">
             <h2>🔒 Обязательные резервы</h2>
             <div class="form-card">
                 <form id="reserve-form" class="reserve-form-grid">
@@ -183,8 +188,9 @@
             </div>
             <div id="reserves-list"></div>
         </section>
-        
-               <section class="section-block">
+
+        <!-- ЦЕЛИ -->
+        <section class="section-block">
             <h2>🎯 Цели (накопления)</h2>
             <div class="form-card">
                 <form id="goal-form" class="goal-form-new">
@@ -208,7 +214,8 @@
             <div id="achieved-list"></div>
         </section>
 
-               <section class="section-block">
+        <!-- КОНВЕРТЫ -->
+        <section class="section-block">
             <h2>📁 Выделенная сумма на период</h2>
 
             <div class="templates-block" id="templates-block" style="display:none">
@@ -238,8 +245,28 @@
             <div id="envelopes-list"></div>
         </section>
 
+        <!-- ИСТОРИЯ -->
         <section class="history-section">
             <h2>📜 История операций</h2>
+
+            <div class="quick-buttons" id="quick-buttons"></div>
+
+            <div class="history-controls">
+                <input type="text" id="history-search" placeholder="🔍 Поиск по описанию, сумме или категории...">
+                <select id="history-type-filter">
+                    <option value="all">Все операции</option>
+                    <option value="income">💵 Только доходы</option>
+                    <option value="expense">💸 Только расходы</option>
+                    <option value="transfer">🔁 Только переводы</option>
+                </select>
+                <select id="history-period-filter">
+                    <option value="all">За всё время</option>
+                    <option value="week">За неделю</option>
+                    <option value="month">За месяц</option>
+                    <option value="year">За год</option>
+                </select>
+            </div>
+
             <div id="transactions-list"></div>
         </section>
     </div>
