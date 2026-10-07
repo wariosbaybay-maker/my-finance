@@ -447,3 +447,68 @@ button:hover { background: #2980b9; }
     .goal-form-new button { grid-column: span 2; }
     .goal-header { padding-right: 0; }
 }
+/* ===== ЭТАП 6: КОНВЕРТЫ И РЕЗЕРВЫ ===== */
+
+/* Шаблоны */
+.templates-block {
+    background: #f8f4ff; border: 1px dashed #b39ddb; border-radius: 12px;
+    padding: 15px; margin-bottom: 15px;
+}
+.templates-title { font-size: 0.9rem; color: #6a4ca8; font-weight: 600; margin-bottom: 10px; }
+.templates-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.template-chip {
+    background: white; border: 1px solid #d5c2f0; border-radius: 20px;
+    padding: 8px 14px; font-size: 0.85rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; color: #6a4ca8;
+}
+.template-chip:hover { background: #f0e6ff; }
+.template-chip .chip-del {
+    color: #ccc; font-weight: bold; cursor: pointer;
+}
+.template-chip .chip-del:hover { color: #e74c3c; }
+
+/* Чекбоксы в форме */
+.checkbox-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; color: #666; cursor: pointer;
+    white-space: nowrap;
+}
+.checkbox-label input[type="checkbox"] {
+    width: auto; padding: 0; margin: 0; cursor: pointer;
+}
+
+/* Оповещения о лимите */
+.limit-warn {
+    background: #fff3cd; color: #856404; padding: 8px 12px;
+    border-radius: 6px; font-size: 0.85rem; margin-bottom: 10px;
+    border-left: 3px solid #ffb300;
+}
+.limit-over {
+    background: #ffe5e5; color: #c0392b; padding: 8px 12px;
+    border-radius: 6px; font-size: 0.85rem; margin-bottom: 10px;
+    border-left: 3px solid #e74c3c;
+}
+.auto-renew-badge {
+    display: inline-block; background: #e8f4fd; color: #2980b9;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 0.7rem; font-weight: 600; margin-left: 8px;
+}
+
+/* Кнопка переброса */
+.btn-transfer-env { background: #3498db; }
+.btn-transfer-env:hover { background: #2980b9; }
+
+/* Форма конверта теперь с чекбоксами — переопределяем сетку */
+.envelope-form-grid {
+    grid-template-columns: 2fr 1fr 1fr 1fr auto auto auto !important;
+}
+.reserve-form-grid {
+    grid-template-columns: 2fr 1fr 1fr 1fr auto !important;
+}
+
+@media (max-width: 900px) {
+    .envelope-form-grid { grid-template-columns: 1fr 1fr !important; }
+    .envelope-form-grid button { grid-column: span 2; }
+    .reserve-form-grid { grid-template-columns: 1fr 1fr !important; }
+    .reserve-form-grid button { grid-column: span 2; }
+}
